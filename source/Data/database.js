@@ -158,7 +158,7 @@ const initDatabase = async () => {
     )
 `);
 
-  // NEW: Attendance table WITHOUT unique constraint - allows multiple check-ins per day
+  // NEW: kkkAttendance table WITHOUT unique constraint - allows multiple check-ins per day
   await runAsync(`
     CREATE TABLE IF NOT EXISTS attendance(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
