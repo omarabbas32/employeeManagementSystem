@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Analytics - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>Employee Analytics</h1>
+                <p class="text-muted">View detailed performance metrics for each employee</p>
+            </div>
+
+            <div class="card">
+                <div class="form-group">
+                    <label class="form-label">Select Employee</label>
+                    <select id="employee-select" class="form-control">
+                        <option value="">Choose an employee...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="analytics-section" style="display: none;">
+                <div class="grid grid-4">
+                    <div class="stat-card">
+                        <h3 id="total-hours">0</h3>
+                        <p>Total Hours (This Month)</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        <h3 id="completed-tasks">0</h3>
+                        <p>Completed Tasks</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                        <h3 id="pending-tasks">0</h3>
+                        <p>Pending Tasks</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                        <h3 id="total-tasks">0</h3>
+                        <p>Total Tasks</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Employee Information</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid grid-2 gap-2">
+                            <div>
+                                <p><strong>Name:</strong> <span id="emp-name"></span></p>
+                                <p><strong>Email:</strong> <span id="emp-email"></span></p>
+                                <p><strong>Username:</strong> <span id="emp-username"></span></p>
+                            </div>
+                            <div>
+                                <p><strong>Type:</strong> <span id="emp-type"></span></p>
+                                <p><strong>Base Salary:</strong> <span id="emp-salary"></span></p>
+                                <p><strong>Monthly Factor:</strong> <span id="emp-factor"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Monthly Stats</h3>
+                        <div class="form-group" style="margin: 0; max-width: 200px;">
+                            <select id="month-select" class="form-control">
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body" id="monthly-stats">
+                        <p class="text-muted">Select a month to view stats</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Task Performance History</h3>
+                    </div>
+                    <div class="card-body" id="task-history">
+                        <p class="text-muted">Loading task history...</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Attendance Records</h3>
+                    </div>
+                    <div class="card-body" id="attendance-records">
+                        <p class="text-muted">Loading attendance...</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Responsibilities</h3>
+                    </div>
+                    <div class="card-body" id="responsibilities-list">
+                        <p class="text-muted">Loading responsibilities...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Admin')) throw new Error('Unauthorized');
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'analytics');
+
+        let employees = [];
+        let selectedEmployeeId = null;
+        let employeeData = null;
+
+        // Generate month options for the last 12 months
+        function generateMonthOptions() {
+            const select = document.getElementById('month-select');
+            const options = [];
+            const now = new Date();
+
+            for (let i = 0; i < 12; i++) {
+                const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const value = `${year}-${month}`;
+                const label = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+                options.push(`<option value="${value}">${label}</option>`);
+            }
+
+            select.innerHTML = options.join('');
+        }
+
+        async function loadEmployees() {
+            try {
+                employees = await api.getEmployees();
+
+                const select = document.getElementById('employee-select');
+                select.innerHTML = '<option value="">Choose an employee...</option>' +
+                    employees.map(emp =>
+                        `<option value="${emp.id}">${utils.escapeHtml(emp.name)}</option>`
+                    ).join('');
+            } catch (error) {
+                showToast('Failed to load employees: ' + error.message, 'error');
+            }
+        }
+
+        document.getElementById('employee-select').addEventListener('change', async (e) => {
+            selectedEmployeeId = e.target.value;
+
+            if (!selectedEmployeeId) {
+                document.getElementById('analytics-section').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('analytics-section').style.display = 'block';
+            await loadEmployeeAnalytics();
+        });
+
+        document.getElementById('month-select').addEventListener('change', loadMonthlyStats);
+
+        async function loadEmployeeAnalytics() {
+            if (!selectedEmployeeId) return;
+
+            try {
+                showLoading();
+
+                employeeData = await api.getEmployee(selectedEmployeeId);
+
+                // Update employee info
+                document.getElementById('emp-name').textContent = employeeData.name;
+                document.getElementById('emp-email').textContent = employeeData.email || '-';
+                document.getElementById('emp-username').textContent = employeeData.username || '-';
+                document.getElementById('emp-type').textContent = employeeData.employeeType;
+                document.getElementById('emp-salary').textContent = utils.formatCurrency(employeeData.baseSalary);
+                document.getElementById('emp-factor').textContent = employeeData.monthlyFactor;
+
+                // Calculate task stats
+                const tasks = employeeData.assignedTasks || [];
+                const completedTasks = tasks.filter(t => t.status === 'Done').length;
+                const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
+
+                document.getElementById('completed-tasks').textContent = completedTasks;
+                document.getElementById('pending-tasks').textContent = pendingTasks;
+                document.getElementById('total-tasks').textContent = tasks.length;
+
+                // Calculate total hours for current month
+                const currentMonth = utils.getCurrentMonth();
+                const attendance = employeeData.attendanceRecords || [];
+                const monthAttendance = attendance.filter(a => a.date && a.date.startsWith(currentMonth));
+                const totalHours = monthAttendance.reduce((sum, a) => sum + (a.totalHours || 0), 0);
+                document.getElementById('total-hours').textContent = totalHours.toFixed(1);
+
+                // Load task history
+                renderTaskHistory(tasks);
+
+                // Load attendance records
+                renderAttendanceRecords(attendance);
+
+                // Load responsibilities
+                renderResponsibilities(employeeData.assignedResponsibilities || []);
+
+                // Load monthly stats for current month
+                await loadMonthlyStats();
+
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load employee analytics: ' + error.message, 'error');
+            }
+        }
+
+        async function loadMonthlyStats() {
+            if (!selectedEmployeeId) return;
+
+            const month = document.getElementById('month-select').value;
+
+            try {
+                const salaryData = await api.getSalary(selectedEmployeeId, { month });
+
+                const statsContainer = document.getElementById('monthly-stats');
+                statsContainer.innerHTML = `
+          <div class="grid grid-2 gap-2">
+            <div>
+              <h4>Attendance</h4>
+              <p><strong>Total Hours:</strong> ${salaryData.attendance.totalHours}</p>
+              <p><strong>Normal Hours:</strong> ${salaryData.attendance.normalHours}</p>
+              <p><strong>Overtime Hours:</strong> ${salaryData.attendance.overtimeHours}</p>
+            </div>
+            <div>
+              <h4>Tasks</h4>
+              <p><strong>Completed:</strong> ${salaryData.tasks.completed}</p>
+              <p><strong>Earnings:</strong> ${utils.formatCurrency(salaryData.tasks.totalEarnings)}</p>
+            </div>
+            <div>
+              <h4>Responsibilities</h4>
+              <p><strong>Count:</strong> ${salaryData.responsibilities.count}</p>
+              <p><strong>Earnings:</strong> ${utils.formatCurrency(salaryData.responsibilities.totalEarnings)}</p>
+            </div>
+            <div>
+              <h4>Salary</h4>
+              <p><strong>Base:</strong> ${utils.formatCurrency(salaryData.baseSalary)}</p>
+              <p><strong>Gross:</strong> ${utils.formatCurrency(salaryData.grossSalary)}</p>
+              <p><strong>Deductions:</strong> ${utils.formatCurrency(salaryData.deductions.total)}</p>
+              <p><strong>Net:</strong> <span style="color: var(--success); font-size: 1.2rem;">${utils.formatCurrency(salaryData.netSalary)}</span></p>
+            </div>
+          </div>
+        `;
+            } catch (error) {
+                document.getElementById('monthly-stats').innerHTML =
+                    `<p class="text-error">Failed to load monthly stats: ${error.message}</p>`;
+            }
+        }
+
+        function renderTaskHistory(tasks) {
+            const container = document.getElementById('task-history');
+
+            if (tasks.length === 0) {
+                container.innerHTML = '<p class="text-muted">No tasks assigned</p>';
+                return;
+            }
+
+            const rows = tasks.map(task => ({
+                data: [
+                    utils.escapeHtml(task.title),
+                    `<span class="badge ${utils.getStatusBadgeClass(task.status)}">${task.status}</span>`,
+                    utils.formatCurrency(task.price),
+                    utils.formatDateReadable(task.createdAt)
+                ]
+            }));
+
+            container.innerHTML = createTable(
+                ['Task', 'Status', 'Price', 'Created'],
+                rows
+            );
+        }
+
+        function renderAttendanceRecords(records) {
+            const container = document.getElementById('attendance-records');
+
+            if (records.length === 0) {
+                container.innerHTML = '<p class="text-muted">No attendance records</p>';
+                return;
+            }
+
+            const rows = records.slice(0, 10).map(record => ({
+                data: [
+                    utils.formatDateReadable(record.date),
+                    utils.formatTime(record.checkIn),
+                    utils.formatTime(record.checkOut) || '-',
+                    record.totalHours ? record.totalHours.toFixed(2) : '-'
+                ]
+            }));
+
+            container.innerHTML = createTable(
+                ['Date', 'Check In', 'Check Out', 'Total Hours'],
+                rows
+            );
+        }
+
+        function renderResponsibilities(responsibilities) {
+            const container = document.getElementById('responsibilities-list');
+
+            if (responsibilities.length === 0) {
+                container.innerHTML = '<p class="text-muted">No responsibilities assigned</p>';
+                return;
+            }
+
+            const rows = responsibilities.map(resp => ({
+                data: [
+                    utils.escapeHtml(resp.title),
+                    utils.escapeHtml(resp.description || '-'),
+                    utils.formatCurrency(resp.monthlyPrice),
+                    resp.factor
+                ]
+            }));
+
+            container.innerHTML = createTable(
+                ['Title', 'Description', 'Monthly Price', 'Factor'],
+                rows
+            );
+        }
+
+        generateMonthOptions();
+        loadEmployees();
+    </script>
+</body>
+
+</html>

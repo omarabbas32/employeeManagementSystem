@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Dashboard - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .responsibility-badge {
+            background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>Employee Dashboard</h1>
+                <p class="text-muted">Welcome back, <span id="employee-name"></span></p>
+            </div>
+
+            <div class="grid grid-3">
+                <div class="stat-card">
+                    <h3 id="total-tasks">0</h3>
+                    <p>Total Tasks</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                    <h3 id="pending-tasks">0</h3>
+                    <p>Pending Tasks</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <h3 id="completed-tasks">0</h3>
+                    <p>Completed Tasks</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Quick Actions</h3>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-3 gap-2">
+                        <a href="tasks.html" class="btn btn-primary">
+                            📋 View My Tasks
+                        </a>
+                        <a href="attendance.html" class="btn btn-primary">
+                            ⏰ Attendance
+                        </a>
+                        <button class="btn btn-success" onclick="quickCheckIn()" id="checkin-btn">
+                            ✅ Quick Check-In
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Today's Status</h3>
+                </div>
+                <div class="card-body" id="today-status">
+                    <p class="text-muted">Loading...</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Tasks</h3>
+                </div>
+                <div class="card-body" id="recent-tasks">
+                    <p class="text-muted">Loading tasks...</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">🎯 My Responsibilities</h3>
+                </div>
+                <div class="card-body" id="responsibilities-section">
+                    <p class="text-muted">Loading responsibilities...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init()) throw new Error('Unauthorized');
+
+        const user = auth.getCurrentUser();
+        document.getElementById('sidebar-container').innerHTML = createSidebar(user.employeeType, 'dashboard');
+        document.getElementById('employee-name').textContent = user.name;
+
+        async function loadDashboard() {
+            try {
+                showLoading();
+
+                const [tasks, responsibilities, attendance] = await Promise.all([
+                    api.getTaskAssignments({ employeeId: user.id }),
+                    api.getResponsibilities({ employeeId: user.id }),
+                    api.getAttendance(user.id, { month: utils.getCurrentMonth() })
+                ]);
+
+                // Calculate stats
+                const totalTasks = tasks.length;
+                const pendingTasks = tasks.filter(t => t.status === 'Pending' || t.status === 'In Progress').length;
+                const completedTasks = tasks.filter(t => t.status === 'Done').length;
+
+                document.getElementById('total-tasks').textContent = totalTasks;
+                document.getElementById('pending-tasks').textContent = pendingTasks;
+                document.getElementById('completed-tasks').textContent = completedTasks;
+
+                // Show today's status
+                const today = utils.formatDate(new Date());
+                const todayAttendance = attendance.find(a => a.date === today);
+
+                updateTodayStatus(todayAttendance);
+
+                // Show recent tasks
+                renderRecentTasks(tasks);
+
+                // Show responsibilities
+                renderResponsibilities(responsibilities);
+
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load dashboard: ' + error.message, 'error');
+            }
+        }
+
+        function updateTodayStatus(todayRecord) {
+            const statusDiv = document.getElementById('today-status');
+            const checkinBtn = document.getElementById('checkin-btn');
+
+            if (!todayRecord) {
+                statusDiv.innerHTML = '<p class="text-muted">You have not checked in today</p>';
+                checkinBtn.textContent = '✅ Quick Check-In';
+                checkinBtn.onclick = quickCheckIn;
+                checkinBtn.classList.remove('btn-danger');
+                checkinBtn.classList.add('btn-success');
+            } else if (!todayRecord.checkOut) {
+                statusDiv.innerHTML = `
+          <p><strong>Check-In:</strong> ${utils.formatTime(todayRecord.checkIn)}</p>
+          <p class="text-success">You are currently checked in</p>
+        `;
+                checkinBtn.textContent = '🚪 Quick Check-Out';
+                checkinBtn.onclick = quickCheckOut;
+                checkinBtn.classList.remove('btn-success');
+                checkinBtn.classList.add('btn-danger');
+            } else {
+                statusDiv.innerHTML = `
+          <p><strong>Check-In:</strong> ${utils.formatTime(todayRecord.checkIn)}</p>
+          <p><strong>Check-Out:</strong> ${utils.formatTime(todayRecord.checkOut)}</p>
+          <p><strong>Total Hours:</strong> ${todayRecord.totalHours.toFixed(2)}</p>
+          <p class="text-success">Attendance completed for today</p>
+        `;
+                checkinBtn.disabled = true;
+            }
+        }
+
+        function renderRecentTasks(tasks) {
+            const container = document.getElementById('recent-tasks');
+
+            if (tasks.length === 0) {
+                container.innerHTML = '<p class="text-muted">No tasks assigned</p>';
+                return;
+            }
+
+            const rows = tasks.slice(0, 5).map(task => ({
+                data: [
+                    `📋 ${utils.escapeHtml(task.templateName || task.title || 'Untitled')}`,
+                    `<span class="badge ${utils.getStatusBadgeClass(task.status)}">${task.status}</span>`,
+                    utils.formatDateReadable(task.createdAt)
+                ]
+            }));
+
+            container.innerHTML = createTable(
+                ['Task', 'Status', 'Created'],
+                rows
+            );
+        }
+
+        function renderResponsibilities(responsibilities) {
+            const container = document.getElementById('responsibilities-section');
+
+            if (responsibilities.length === 0) {
+                container.innerHTML = '<p class="text-muted">No responsibilities assigned</p>';
+                return;
+            }
+
+            const rows = responsibilities.map(resp => ({
+                data: [
+                    `🎯 ${utils.escapeHtml(resp.title || resp.name || 'Untitled')}`,
+                    `<span class="responsibility-badge">${resp.status}</span>`,
+                    utils.formatCurrency(resp.monthlyPrice || 0)
+                ]
+            }));
+
+            container.innerHTML = createTable(
+                ['Responsibility', 'Status', 'Monthly Price'],
+                rows
+            );
+        }
+
+        async function quickCheckIn() {
+            try {
+                showLoading();
+                await api.checkIn(user.id);
+                hideLoading();
+                showToast('Checked in successfully!', 'success');
+                loadDashboard();
+            } catch (error) {
+                hideLoading();
+                showToast('Check-in failed: ' + error.message, 'error');
+            }
+        }
+
+        async function quickCheckOut() {
+            try {
+                showLoading();
+                await api.checkOut(user.id);
+                hideLoading();
+                showToast('Checked out successfully!', 'success');
+                loadDashboard();
+            } catch (error) {
+                hideLoading();
+                showToast('Check-out failed: ' + error.message, 'error');
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+
+</html>

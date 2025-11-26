@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsibilities - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="card-header">
+                    <h1>Manage Responsibilities</h1>
+                    <button class="btn btn-primary" onclick="openAddResponsibilityModal()">
+                        ➕ Add Responsibility
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="form-group">
+                    <select id="employee-filter" class="form-control">
+                        <option value="">All Employees</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="responsibilities-container">
+                <p class="text-muted">Loading responsibilities...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Responsibility Modal -->
+    <div id="add-responsibility-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add Responsibility</h3>
+                <button class="modal-close" onclick="closeModal('add-responsibility-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-responsibility-form">
+                    <div class="form-group">
+                        <label class="form-label">Title *</label>
+                        <input type="text" name="title" class="form-control"
+                            placeholder="e.g., Team Lead, Project Manager" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control"
+                            placeholder="Describe the responsibility..."></textarea>
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Assign To *</label>
+                            <select name="assignedEmployeeId" class="form-control" id="responsibility-employee-select"
+                                required>
+                                <option value="">Select employee...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Monthly Price *</label>
+                            <input type="number" name="monthlyPrice" class="form-control" min="0" step="0.01" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Factor</label>
+                        <input type="number" name="factor" class="form-control" value="1" min="0" step="0.1">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('add-responsibility-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAddResponsibility()">Add Responsibility</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Responsibility Modal -->
+    <div id="edit-responsibility-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Responsibility</h3>
+                <button class="modal-close" onclick="closeModal('edit-responsibility-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-responsibility-form">
+                    <input type="hidden" name="id">
+
+                    <div class="form-group">
+                        <label class="form-label">Title</label>
+                        <input type="text" name="title" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control"></textarea>
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Assign To</label>
+                            <select name="assignedEmployeeId" class="form-control"
+                                id="edit-responsibility-employee-select">
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Monthly Price</label>
+                            <input type="number" name="monthlyPrice" class="form-control" min="0" step="0.01">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Factor</label>
+                        <input type="number" name="factor" class="form-control" min="0" step="0.1">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('edit-responsibility-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitEditResponsibility()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Admin')) throw new Error('Unauthorized');
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'responsibilities');
+
+        let responsibilities = [];
+        let employees = [];
+        let filteredResponsibilities = [];
+
+        async function loadEmployees() {
+            try {
+                employees = await api.getEmployees();
+
+                const addSelect = document.getElementById('responsibility-employee-select');
+                const editSelect = document.getElementById('edit-responsibility-employee-select');
+                const filterSelect = document.getElementById('employee-filter');
+
+                const options = employees.map(emp =>
+                    `<option value="${emp.id}">${utils.escapeHtml(emp.name)}</option>`
+                ).join('');
+
+                addSelect.innerHTML = '<option value="">Select employee...</option>' + options;
+                editSelect.innerHTML = options;
+                filterSelect.innerHTML = '<option value="">All Employees</option>' + options;
+            } catch (error) {
+                showToast('Failed to load employees: ' + error.message, 'error');
+            }
+        }
+
+        async function loadResponsibilities() {
+            try {
+                showLoading();
+                responsibilities = await api.getResponsibilities();
+                filteredResponsibilities = responsibilities;
+                renderResponsibilities();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load responsibilities: ' + error.message, 'error');
+            }
+        }
+
+        function renderResponsibilities() {
+            const container = document.getElementById('responsibilities-container');
+
+            if (filteredResponsibilities.length === 0) {
+                container.innerHTML = createEmptyState('No responsibilities found');
+                return;
+            }
+
+            const rows = filteredResponsibilities.map(resp => {
+                const employee = employees.find(e => e.id === resp.assignedEmployeeId);
+                return {
+                    data: [
+                        utils.escapeHtml(resp.title),
+                        utils.escapeHtml(resp.description || '-'),
+                        employee ? utils.escapeHtml(employee.name) : 'Unknown',
+                        utils.formatCurrency(resp.monthlyPrice),
+                        resp.factor,
+                        utils.formatDateReadable(resp.createdAt)
+                    ],
+                    id: resp.id,
+                    responsibility: resp
+                };
+            });
+
+            container.innerHTML = `
+        <div class="card">
+          ${createTable(
+                ['Title', 'Description', 'Assigned To', 'Monthly Price', 'Factor', 'Created'],
+                rows,
+                (row) => `
+              <button class="btn btn-sm btn-secondary" onclick="openEditResponsibilityModal(${row.id})">Edit</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteResponsibility(${row.id})">Delete</button>
+            `
+            )}
+        </div>
+      `;
+        }
+
+        document.getElementById('employee-filter').addEventListener('change', (e) => {
+            const employeeId = e.target.value;
+
+            if (!employeeId) {
+                filteredResponsibilities = responsibilities;
+            } else {
+                filteredResponsibilities = responsibilities.filter(r => r.assignedEmployeeId == employeeId);
+            }
+
+            renderResponsibilities();
+        });
+
+        function openAddResponsibilityModal() {
+            document.getElementById('add-responsibility-form').reset();
+            openModal('add-responsibility-modal');
+        }
+
+        async function submitAddResponsibility() {
+            const form = document.getElementById('add-responsibility-form');
+            const formData = new FormData(form);
+
+            const data = {
+                title: formData.get('title'),
+                description: formData.get('description') || '',
+                assignedEmployeeId: parseInt(formData.get('assignedEmployeeId')),
+                monthlyPrice: parseFloat(formData.get('monthlyPrice')),
+                factor: parseFloat(formData.get('factor')) || 1
+            };
+
+            if (!data.title || !data.assignedEmployeeId || data.monthlyPrice === undefined) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                await api.createResponsibility(data);
+                hideLoading();
+                showToast('Responsibility added successfully', 'success');
+                closeModal('add-responsibility-modal');
+                loadResponsibilities();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to add responsibility: ' + error.message, 'error');
+            }
+        }
+
+        function openEditResponsibilityModal(id) {
+            const resp = responsibilities.find(r => r.id === id);
+            if (!resp) return;
+
+            const form = document.getElementById('edit-responsibility-form');
+            form.elements.id.value = resp.id;
+            form.elements.title.value = resp.title;
+            form.elements.description.value = resp.description || '';
+            form.elements.assignedEmployeeId.value = resp.assignedEmployeeId;
+            form.elements.monthlyPrice.value = resp.monthlyPrice;
+            form.elements.factor.value = resp.factor;
+
+            openModal('edit-responsibility-modal');
+        }
+
+        async function submitEditResponsibility() {
+            const form = document.getElementById('edit-responsibility-form');
+            const formData = new FormData(form);
+            const id = formData.get('id');
+
+            const data = {
+                title: formData.get('title'),
+                description: formData.get('description'),
+                assignedEmployeeId: parseInt(formData.get('assignedEmployeeId')),
+                monthlyPrice: parseFloat(formData.get('monthlyPrice')),
+                factor: parseFloat(formData.get('factor'))
+            };
+
+            try {
+                showLoading();
+                await api.updateResponsibility(id, data);
+                hideLoading();
+                showToast('Responsibility updated successfully', 'success');
+                closeModal('edit-responsibility-modal');
+                loadResponsibilities();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to update responsibility: ' + error.message, 'error');
+            }
+        }
+
+        function deleteResponsibility(id) {
+            const resp = responsibilities.find(r => r.id === id);
+            if (!resp) return;
+
+            confirm(
+                `Are you sure you want to delete "${resp.title}"?`,
+                async () => {
+                    try {
+                        showLoading();
+                        await api.deleteResponsibility(id);
+                        hideLoading();
+                        showToast('Responsibility deleted successfully', 'success');
+                        loadResponsibilities();
+                    } catch (error) {
+                        hideLoading();
+                        showToast('Failed to delete responsibility: ' + error.message, 'error');
+                    }
+                }
+            );
+        }
+
+        loadEmployees();
+        loadResponsibilities();
+    </script>
+</body>
+
+</html>

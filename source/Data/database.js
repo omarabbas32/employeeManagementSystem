@@ -91,13 +91,57 @@ const initDatabase = async () => {
       price REAL DEFAULT 0,
       assignedEmployeeId INTEGER NOT NULL,
       assignedBy TEXT,
-      status TEXT DEFAULT 'Not Done',
+      status TEXT DEFAULT 'Pending',
       startDate TEXT,
       dueDate TEXT,
-      factor REAL,
+      factor REAL DEFAULT 1,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (assignedEmployeeId) REFERENCES employees(id)
     )
   `);
+
+  // NEW: Task Templates - reusable task definitions created by admins
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS task_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      price REAL DEFAULT 0,
+      factor REAL DEFAULT 1,
+      type TEXT DEFAULT 'task',
+      createdBy TEXT DEFAULT 'Admin',
+      isActive INTEGER DEFAULT 1,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // NEW: Task Assignments - actual task assignments linking templates to employees
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS task_assignments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      templateId INTEGER NOT NULL,
+      assignedEmployeeId INTEGER NOT NULL,
+      assignedBy TEXT NOT NULL,
+      type TEXT DEFAULT 'task',
+      status TEXT DEFAULT 'Pending',
+      startDate TEXT,
+      dueDate TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      completedAt TEXT,
+      FOREIGN KEY (templateId) REFERENCES task_templates(id),
+      FOREIGN KEY (assignedEmployeeId) REFERENCES employees(id)
+    )
+  `);
+
+
+  // Create indexes for better performance
+  await runAsync(`CREATE INDEX IF NOT EXISTS idx_task_assignments_template ON task_assignments(templateId)`);
+  await runAsync(`CREATE INDEX IF NOT EXISTS idx_task_assignments_employee ON task_assignments(assignedEmployeeId)`);
+  await runAsync(`CREATE INDEX IF NOT EXISTS idx_task_assignments_status ON task_assignments(status)`);
+
+  // Add type column to existing tables (for migration)
+  await ensureColumn('task_templates', 'type', "TEXT DEFAULT 'task'");
+  await ensureColumn('task_assignments', 'type', "TEXT DEFAULT 'task'");
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS responsibilities (
@@ -106,76 +150,85 @@ const initDatabase = async () => {
       description TEXT,
       monthlyPrice REAL DEFAULT 0,
       assignedEmployeeId INTEGER NOT NULL,
-      assignedBy TEXT,
-      status TEXT DEFAULT 'Not Done',
-      factor REAL,
-      FOREIGN KEY (assignedEmployeeId) REFERENCES employees(id)
+    assignedBy TEXT,
+      status TEXT DEFAULT 'Active',
+        factor REAL DEFAULT 1,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(assignedEmployeeId) REFERENCES employees(id)
     )
+`);
+
+  // NEW: Attendance table WITHOUT unique constraint - allows multiple check-ins per day
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS attendance(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  employeeId INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  checkInTime TEXT,
+  checkOutTime TEXT,
+  dailyHours REAL DEFAULT 0,
+  createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(employeeId) REFERENCES employees(id)
+)
+  `);
+
+  // Create index for faster queries (but not unique)
+  await runAsync(`CREATE INDEX IF NOT EXISTS idx_attendance_employee_date ON attendance(employeeId, date)`);
+
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS notes(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  employeeId INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  author TEXT NOT NULL DEFAULT 'Admin',
+  visibility TEXT DEFAULT 'employee',
+  createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(employeeId) REFERENCES employees(id)
+)
   `);
 
   await runAsync(`
-    CREATE TABLE IF NOT EXISTS attendance (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      employeeId INTEGER NOT NULL,
-      date TEXT NOT NULL,
-      checkInTime TEXT,
-      checkOutTime TEXT,
-      dailyHours REAL DEFAULT 0,
-      FOREIGN KEY (employeeId) REFERENCES employees(id),
-      UNIQUE (employeeId, date)
-    )
+    CREATE TABLE IF NOT EXISTS admin_settings(
+    id INTEGER PRIMARY KEY CHECK(id = 1),
+    normalHourRate REAL DEFAULT 10,
+    overtimeHourRate REAL DEFAULT 15,
+    overtimeThresholdHours REAL DEFAULT 160,
+    currentAttendanceCode TEXT,
+    allowTaskOvertimeFactor INTEGER DEFAULT 0,
+    allowResponsibilityDeduction INTEGER DEFAULT 0
+  )
   `);
 
   await runAsync(`
-    CREATE TABLE IF NOT EXISTS notes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      employeeId INTEGER NOT NULL,
-      content TEXT NOT NULL,
-      author TEXT NOT NULL,
-      visibility TEXT DEFAULT 'admin',
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (employeeId) REFERENCES employees(id)
-    )
-  `);
-
-  await runAsync(`
-    CREATE TABLE IF NOT EXISTS admin_settings (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      normalHourRate REAL DEFAULT 10,
-      overtimeHourRate REAL DEFAULT 15,
-      overtimeThresholdHours REAL DEFAULT 160,
-      currentAttendanceCode TEXT,
-      allowTaskOvertimeFactor INTEGER DEFAULT 0,
-      allowResponsibilityDeduction INTEGER DEFAULT 0
-    )
-  `);
-
-  await runAsync(`
-    CREATE TABLE IF NOT EXISTS deduction_rules (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('fixed', 'percentage')),
-      amount REAL NOT NULL,
-      applyToEmployeeId INTEGER,
-      isActive INTEGER DEFAULT 1,
-      FOREIGN KEY (applyToEmployeeId) REFERENCES employees(id)
-    )
+    CREATE TABLE IF NOT EXISTS deduction_rules(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL CHECK(type IN('fixed', 'percentage')),
+    amount REAL NOT NULL,
+    applyToEmployeeId INTEGER,
+    isActive INTEGER DEFAULT 1,
+    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(applyToEmployeeId) REFERENCES employees(id)
+  )
   `);
 
   const existingSettings = await getAsync(`SELECT id FROM admin_settings WHERE id = 1`);
   if (!existingSettings) {
     await runAsync(
-      `INSERT INTO admin_settings (id, normalHourRate, overtimeHourRate, overtimeThresholdHours) VALUES (1, 10, 15, 160)`
+      `INSERT INTO admin_settings(id, normalHourRate, overtimeHourRate, overtimeThresholdHours) VALUES(1, 10, 15, 160)`
     );
   }
 
   const predefinedTypes = ['Admin', 'Managerial', 'Financial', 'Assistant'];
   for (const typeName of predefinedTypes) {
     await runAsync(
-      `INSERT OR IGNORE INTO employee_types (name, privileges) VALUES (?, ?)`,
+      `INSERT OR IGNORE INTO employee_types(name, privileges) VALUES(?, ?)`,
       [typeName, typeName.toLowerCase()]
     );
   }
+
+  console.log('✅ Database initialized successfully');
+  console.log('✅ Multiple check-ins per day enabled');
 };
 
 module.exports = {
@@ -185,4 +238,3 @@ module.exports = {
   getAsync,
   allAsync,
 };
-

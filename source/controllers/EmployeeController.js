@@ -13,11 +13,32 @@ const mapEmployeeDetails = async (employee) => {
     allAsync(`SELECT * FROM notes WHERE employeeId = ? ORDER BY createdAt DESC`, [employee.id]),
   ]);
 
+  // Map database fields to frontend expected fields
+  const mappedTasks = tasks.map(task => ({
+    ...task,
+    title: task.name,
+    checkIn: task.checkInTime,
+    checkOut: task.checkOutTime,
+    totalHours: task.dailyHours
+  }));
+
+  const mappedResponsibilities = responsibilities.map(resp => ({
+    ...resp,
+    title: resp.name
+  }));
+
+  const mappedAttendance = attendance.map(att => ({
+    ...att,
+    checkIn: att.checkInTime,
+    checkOut: att.checkOutTime,
+    totalHours: att.dailyHours || 0
+  }));
+
   return {
     ...employee,
-    assignedTasks: tasks,
-    assignedResponsibilities: responsibilities,
-    attendanceRecords: attendance,
+    assignedTasks: mappedTasks,
+    assignedResponsibilities: mappedResponsibilities,
+    attendanceRecords: mappedAttendance,
     notes,
   };
 };
@@ -116,4 +137,3 @@ module.exports = {
   updateEmployee,
   deleteEmployee,
 };
-

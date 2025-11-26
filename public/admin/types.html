@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Titles - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="card-header">
+                    <h1>Job Titles / Employee Types</h1>
+                    <button class="btn btn-primary" onclick="openAddTypeModal()">
+                        ➕ Add Job Title
+                    </button>
+                </div>
+            </div>
+
+            <div id="types-container">
+                <p class="text-muted">Loading job titles...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Type Modal -->
+    <div id="add-type-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Add Job Title</h3>
+                <button class="modal-close" onclick="closeModal('add-type-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-type-form">
+                    <div class="form-group">
+                        <label class="form-label">Job Title Name *</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g., Developer, Designer"
+                            required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('add-type-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAddType()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Admin')) throw new Error('Unauthorized');
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'types');
+
+        let types = [];
+
+        async function loadTypes() {
+            try {
+                showLoading();
+                types = await api.getTypes();
+                renderTypes();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load job titles: ' + error.message, 'error');
+            }
+        }
+
+        function renderTypes() {
+            const container = document.getElementById('types-container');
+
+            if (types.length === 0) {
+                container.innerHTML = createEmptyState('No job titles found');
+                return;
+            }
+
+            const rows = types.map(type => ({
+                data: [
+                    utils.escapeHtml(type.name),
+                    utils.formatDateReadable(type.createdAt)
+                ],
+                id: type.id
+            }));
+
+            container.innerHTML = `
+        <div class="card">
+          ${createTable(
+                ['Job Title', 'Created'],
+                rows,
+                (row) => `
+              <button class="btn btn-sm btn-danger" onclick="deleteType(${row.id})">Delete</button>
+            `
+            )}
+        </div>
+      `;
+        }
+
+        function openAddTypeModal() {
+            document.getElementById('add-type-form').reset();
+            openModal('add-type-modal');
+        }
+
+        async function submitAddType() {
+            const form = document.getElementById('add-type-form');
+            const formData = new FormData(form);
+            const name = formData.get('name');
+
+            if (!name) {
+                showToast('Please enter a job title name', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                await api.createType({ name });
+                hideLoading();
+                showToast('Job title added successfully', 'success');
+                closeModal('add-type-modal');
+                loadTypes();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to add job title: ' + error.message, 'error');
+            }
+        }
+
+        function deleteType(id) {
+            const type = types.find(t => t.id === id);
+            if (!type) return;
+
+            confirm(
+                `Are you sure you want to delete "${type.name}"?`,
+                async () => {
+                    try {
+                        showLoading();
+                        await api.deleteType(id);
+                        hideLoading();
+                        showToast('Job title deleted successfully', 'success');
+                        loadTypes();
+                    } catch (error) {
+                        hideLoading();
+                        showToast('Failed to delete job title: ' + error.message, 'error');
+                    }
+                }
+            );
+        }
+
+        loadTypes();
+    </script>
+</body>
+
+</html>

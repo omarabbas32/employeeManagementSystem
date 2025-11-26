@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Responsibilities - Employee - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>My Responsibilities</h1>
+                <p class="text-muted">View your assigned responsibilities and earnings</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Assigned Responsibilities</h3>
+                    <span id="responsibilities-count" class="badge badge-primary">0</span>
+                </div>
+                <div class="card-body" id="responsibilities-list">
+                    <p class="text-muted">Loading responsibilities...</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Monthly Summary</h3>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-3">
+                        <div style="text-align: center;">
+                            <h3 id="total-responsibilities">0</h3>
+                            <p class="text-muted">Total Responsibilities</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <h3 id="active-count">0</h3>
+                            <p class="text-muted">Active</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <h3 id="total-earnings">0 EGP</h3>
+                            <p class="text-muted">Monthly Earnings</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init()) throw new Error('Unauthorized');
+
+        const user = auth.getCurrentUser();
+        document.getElementById('sidebar-container').innerHTML = createSidebar(user.employeeType, 'responsibilities');
+
+        let responsibilities = [];
+
+        async function loadResponsibilities() {
+            try {
+                showLoading();
+                responsibilities = await api.getResponsibilities({ employeeId: user.id });
+                renderResponsibilities();
+                updateSummary();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load responsibilities: ' + error.message, 'error');
+                document.getElementById('responsibilities-list').innerHTML =
+                    '<p class="text-muted">Failed to load responsibilities</p>';
+            }
+        }
+
+        function renderResponsibilities() {
+            const container = document.getElementById('responsibilities-list');
+            const countBadge = document.getElementById('responsibilities-count');
+
+            countBadge.textContent = responsibilities.length;
+
+            if (responsibilities.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 3rem;">
+                        <p class="text-muted" style="font-size: 1.1rem;">📋 No responsibilities assigned</p>
+                        <p class="text-muted">Your admin will assign responsibilities when needed</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = responsibilities.map(resp => {
+                const statusClass = resp.status === 'Active' ? 'success' :
+                    resp.status === 'Pending' ? 'warning' : 'secondary';
+                const monthlyEarning = (resp.monthlyPrice || 0) * (resp.factor || 1);
+
+                return `
+                    <div class="responsibility-card" style="
+                        padding: 1.5rem;
+                        margin-bottom: 1rem;
+                        background: white;
+                        border-radius: 8px;
+                        border-left: 4px solid var(--primary);
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    ">
+                        <div class="flex" style="justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                            <div style="flex: 1;">
+                                <h4 style="margin: 0 0 0.5rem 0;">${resp.title || resp.name}</h4>
+                                <span class="badge badge-${statusClass}">${resp.status || 'Active'}</span>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 1.5rem; font-weight: 600; color: var(--primary);">
+                                    ${monthlyEarning.toFixed(2)} EGP
+                                </div>
+                                <small class="text-muted">per month</small>
+                            </div>
+                        </div>
+
+                        ${resp.description ? `
+                            <div style="
+                                padding: 1rem;
+                                background: var(--gray-50);
+                                border-radius: 4px;
+                                margin-bottom: 1rem;
+                            ">
+                                <strong>Description:</strong><br>
+                                ${resp.description}
+                            </div>
+                        ` : ''}
+
+                        <div class="grid grid-3 mt-1" style="gap: 1rem;">
+                            <div>
+                                <small class="text-muted">Base Price</small>
+                                <div><strong>${resp.monthlyPrice || 0} EGP</strong></div>
+                            </div>
+                            <div>
+                                <small class="text-muted">Factor</small>
+                                <div><strong>×${resp.factor || 1}</strong></div>
+                            </div>
+                            <div>
+                                <small class="text-muted">Assigned By</small>
+                                <div><strong>${resp.assignedBy || 'Admin'}</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        function updateSummary() {
+            const total = responsibilities.length;
+            const active = responsibilities.filter(r => r.status === 'Active').length;
+            const totalEarnings = responsibilities.reduce((sum, r) =>
+                sum + ((r.monthlyPrice || 0) * (r.factor || 1)), 0
+            );
+
+            document.getElementById('total-responsibilities').textContent = total;
+            document.getElementById('active-count').textContent = active;
+            document.getElementById('total-earnings').textContent = totalEarnings.toFixed(2) + ' EGP';
+        }
+
+        loadResponsibilities();
+    </script>
+</body>
+
+</html>

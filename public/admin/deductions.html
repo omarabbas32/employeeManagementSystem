@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deductions - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="card-header">
+                    <h1>Manage Deductions</h1>
+                    <button class="btn btn-primary" onclick="openAddDeductionModal()">
+                        ➕ Add Deduction
+                    </button>
+                </div>
+            </div>
+
+            <div id="deductions-container">
+                <p class="text-muted">Loading deductions...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Deduction Modal -->
+    <div id="add-deduction-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add Deduction</h3>
+                <button class="modal-close" onclick="closeModal('add-deduction-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-deduction-form">
+                    <div class="form-group">
+                        <label class="form-label">Deduction Name *</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g., Income Tax, Insurance"
+                            required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Deduction Amount (EGP) *</label>
+                        <input type="number" name="value" class="form-control" min="0" step="0.01"
+                            placeholder="e.g., 100, 250, 500" required>
+                        <small class="text-muted">Enter fixed amount in EGP (no percentage)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Assign To Employee *</label>
+                        <select name="employeeId" class="form-control" id="deduction-employee-select" required>
+                            <option value="">-- Select Employee --</option>
+                        </select>
+                        <small class="text-muted">⚠️ Deductions must be assigned to a specific employee</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('add-deduction-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAddDeduction()">Add Deduction</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Deduction Modal -->
+    <div id="edit-deduction-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Deduction</h3>
+                <button class="modal-close" onclick="closeModal('edit-deduction-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-deduction-form">
+                    <input type="hidden" name="id">
+
+                    <div class="form-group">
+                        <label class="form-label">Deduction Name</label>
+                        <input type="text" name="name" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Deduction Amount (EGP)</label>
+                        <input type="number" name="value" class="form-control" min="0" step="0.01"
+                            placeholder="e.g., 100, 250, 500">
+                        <small class="text-muted">Fixed amount in EGP</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('edit-deduction-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitEditDeduction()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Admin')) throw new Error('Unauthorized');
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'deductions');
+
+        let deductions = [];
+        let employees = [];
+
+        async function loadEmployees() {
+            try {
+                employees = await api.getEmployees();
+
+                const select = document.getElementById('deduction-employee-select');
+                select.innerHTML = '<option value="">-- Select Employee --</option>' +
+                    employees.map(emp =>
+                        `<option value="${emp.id}">${utils.escapeHtml(emp.name)}</option>`
+                    ).join('');
+            } catch (error) {
+                showToast('Failed to load employees: ' + error.message, 'error');
+            }
+        }
+
+        async function loadDeductions() {
+            try {
+                showLoading();
+                deductions = await api.getDeductions();
+                renderDeductions();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load deductions: ' + error.message, 'error');
+            }
+        }
+
+        function renderDeductions() {
+            const container = document.getElementById('deductions-container');
+
+            if (deductions.length === 0) {
+                container.innerHTML = createEmptyState('No deductions found');
+                return;
+            }
+
+            const rows = deductions.map(deduction => {
+                const employee = deduction.employeeId ? employees.find(e => e.id === deduction.employeeId) : null;
+                const valueDisplay = utils.formatCurrency(deduction.value) + ' EGP';
+
+                return {
+                    data: [
+                        utils.escapeHtml(deduction.name),
+                        valueDisplay,
+                        employee ? utils.escapeHtml(employee.name) : '<span class="text-muted">—</span>',
+                        utils.formatDateReadable(deduction.createdAt)
+                    ],
+                    id: deduction.id,
+                    deduction: deduction
+                };
+            });
+
+            container.innerHTML = `
+        <div class="card">
+          ${createTable(
+                ['Name', 'Amount', 'Employee', 'Created'],
+                rows,
+                (row) => `
+              <button class="btn btn-sm btn-secondary" onclick="openEditDeductionModal(${row.id})">Edit</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteDeduction(${row.id})">Delete</button>
+            `
+            )}
+        </div>
+      `;
+        }
+
+        function openAddDeductionModal() {
+            document.getElementById('add-deduction-form').reset();
+            openModal('add-deduction-modal');
+        }
+
+        async function submitAddDeduction() {
+            const form = document.getElementById('add-deduction-form');
+            const formData = new FormData(form);
+
+            const data = {
+                name: formData.get('name'),
+                type: 'fixed',
+                value: parseFloat(formData.get('value')),
+                employeeId: formData.get('employeeId') ? parseInt(formData.get('employeeId')) : null
+            };
+
+            if (!data.name || data.value === undefined) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+
+            if (!data.employeeId) {
+                showToast('Please select an employee. Deductions must be employee-specific.', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                await api.createDeduction(data);
+                hideLoading();
+                showToast('Deduction added successfully', 'success');
+                closeModal('add-deduction-modal');
+                loadDeductions();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to add deduction: ' + error.message, 'error');
+            }
+        }
+
+        function openEditDeductionModal(id) {
+            const deduction = deductions.find(d => d.id === id);
+            if (!deduction) return;
+
+            const form = document.getElementById('edit-deduction-form');
+            form.elements.id.value = deduction.id;
+            form.elements.name.value = deduction.name;
+            form.elements.type.value = deduction.type;
+            form.elements.value.value = deduction.value;
+
+            openModal('edit-deduction-modal');
+        }
+
+        async function submitEditDeduction() {
+            const form = document.getElementById('edit-deduction-form');
+            const formData = new FormData(form);
+            const id = formData.get('id');
+
+            const data = {
+                name: formData.get('name'),
+                type: 'fixed',
+                value: parseFloat(formData.get('value'))
+            };
+
+            try {
+                showLoading();
+                await api.updateDeduction(id, data);
+                hideLoading();
+                showToast('Deduction updated successfully', 'success');
+                closeModal('edit-deduction-modal');
+                loadDeductions();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to update deduction: ' + error.message, 'error');
+            }
+        }
+
+        function deleteDeduction(id) {
+            const deduction = deductions.find(d => d.id === id);
+            if (!deduction) return;
+
+            confirm(
+                `Are you sure you want to delete "${deduction.name}"?`,
+                async () => {
+                    try {
+                        showLoading();
+                        await api.deleteDeduction(id);
+                        hideLoading();
+                        showToast('Deduction deleted successfully', 'success');
+                        loadDeductions();
+                    } catch (error) {
+                        hideLoading();
+                        showToast('Failed to delete deduction: ' + error.message, 'error');
+                    }
+                }
+            );
+        }
+
+        loadEmployees();
+        loadDeductions();
+    </script>
+</body>
+
+</html>

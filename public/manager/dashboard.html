@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Dashboard - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>Manager Dashboard</h1>
+                <p class="text-muted">Welcome back, <span id="manager-name"></span></p>
+            </div>
+
+            <div class="grid grid-3">
+                <div class="stat-card">
+                    <h3 id="total-tasks">0</h3>
+                    <p>Total Tasks</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                    <h3 id="pending-tasks">0</h3>
+                    <p>Pending Tasks</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <h3 id="completed-tasks">0</h3>
+                    <p>Completed Tasks</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Quick Actions</h3>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-3 gap-2">
+                        <a href="tasks.html" class="btn btn-primary">
+                            📋 Manage Tasks
+                        </a>
+                        <a href="attendance.html" class="btn btn-primary">
+                            ⏰ Attendance
+                        </a>
+                        <button class="btn btn-success" onclick="quickCheckIn()" id="checkin-btn">
+                            ✅ Quick Check-In
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">My Tasks</h3>
+                </div>
+                <div class="card-body" id="my-tasks">
+                    <p class="text-muted">Loading tasks...</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Team Overview</h3>
+                </div>
+                <div class="card-body" id="team-overview">
+                    <p class="text-muted">Loading team data...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Managerial')) throw new Error('Unauthorized');
+
+        const user = auth.getCurrentUser();
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Managerial', 'dashboard');
+        document.getElementById('manager-name').textContent = user.name;
+
+        async function loadDashboard() {
+            try {
+                showLoading();
+
+                const [tasks, attendance] = await Promise.all([
+                    api.getTasks(),
+                    api.getAttendance(user.id, { month: utils.getCurrentMonth() })
+                ]);
+
+                // Calculate stats
+                const totalTasks = tasks.length;
+                const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
+                const completedTasks = tasks.filter(t => t.status === 'Done').length;
+
+                document.getElementById('total-tasks').textContent = totalTasks;
+                document.getElementById('pending-tasks').textContent = pendingTasks;
+                document.getElementById('completed-tasks').textContent = completedTasks;
+
+                // Show my tasks
+                const myTasks = tasks.filter(t => t.assignedEmployeeId === user.id);
+                renderMyTasks(myTasks);
+
+                // Show team overview
+                renderTeamOverview(tasks);
+
+                // Update check-in button
+                const today = utils.formatDate(new Date());
+                const todayAttendance = attendance.find(a => a.date === today);
+
+                if (todayAttendance && !todayAttendance.checkOut) {
+                    document.getElementById('checkin-btn').textContent = '🚪 Quick Check-Out';
+                    document.getElementById('checkin-btn').onclick = quickCheckOut;
+                    document.getElementById('checkin-btn').classList.remove('btn-success');
+                    document.getElementById('checkin-btn').classList.add('btn-danger');
+                }
+
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load dashboard: ' + error.message, 'error');
+            }
+        }
+
+        function renderMyTasks(tasks) {
+            const container = document.getElementById('my-tasks');
+
+            if (tasks.length === 0) {
+                container.innerHTML = '<p class="text-muted">No tasks assigned to you</p>';
+                return;
+            }
+
+            const rows = tasks.slice(0, 5).map(task => ({
+                data: [
+                    utils.escapeHtml(task.title),
+                    `<span class="badge ${utils.getStatusBadgeClass(task.status)}">${task.status}</span>`,
+                    utils.formatDateReadable(task.createdAt)
+                ]
+            }));
+
+            container.innerHTML = createTable(
+                ['Task', 'Status', 'Created'],
+                rows
+            );
+        }
+
+        function renderTeamOverview(tasks) {
+            const container = document.getElementById('team-overview');
+
+            // Group tasks by status
+            const statusGroups = {
+                'Pending': tasks.filter(t => t.status === 'Pending').length,
+                'In Progress': tasks.filter(t => t.status === 'In Progress').length,
+                'Done': tasks.filter(t => t.status === 'Done').length
+            };
+
+            container.innerHTML = `
+        <div class="grid grid-3 gap-2">
+          <div style="text-align: center;">
+            <h3 style="color: var(--warning);">${statusGroups['Pending']}</h3>
+            <p class="text-muted">Pending</p>
+          </div>
+          <div style="text-align: center;">
+            <h3 style="color: var(--info);">${statusGroups['In Progress']}</h3>
+            <p class="text-muted">In Progress</p>
+          </div>
+          <div style="text-align: center;">
+            <h3 style="color: var(--success);">${statusGroups['Done']}</h3>
+            <p class="text-muted">Completed</p>
+          </div>
+        </div>
+      `;
+        }
+
+        async function quickCheckIn() {
+            try {
+                showLoading();
+                await api.checkIn(user.id);
+                hideLoading();
+                showToast('Checked in successfully!', 'success');
+                loadDashboard();
+            } catch (error) {
+                hideLoading();
+                showToast('Check-in failed: ' + error.message, 'error');
+            }
+        }
+
+        async function quickCheckOut() {
+            try {
+                showLoading();
+                await api.checkOut(user.id);
+                hideLoading();
+                showToast('Checked out successfully!', 'success');
+                loadDashboard();
+            } catch (error) {
+                hideLoading();
+                showToast('Check-out failed: ' + error.message, 'error');
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+
+</html>

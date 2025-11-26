@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Task Templates - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="card-header">
+                    <h1>Manage Task Templates</h1>
+                    <button class="btn btn-primary" onclick="openAddTemplateModal()">
+                        ➕ Create Task Template
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="grid grid-2 gap-1">
+                    <div class="form-group">
+                        <input type="text" id="search-input" class="form-control" placeholder="Search templates...">
+                    </div>
+                    <div class="form-group">
+                        <select id="status-filter" class="form-control">
+                            <option value="active">Active Templates</option>
+                            <option value="all">All Templates</option>
+                            <option value="inactive">Inactive Templates</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="templates-container">
+                <p class="text-muted">Loading templates...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Template Modal -->
+    <div id="add-template-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Create New Task Template</h3>
+                <button class="modal-close" onclick="closeModal('add-template-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <button class="btn btn-primary" onclick="submitAddTemplate()">Create Template</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Template Modal -->
+    <div id="edit-template-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Task Template</h3>
+                <button class="modal-close" onclick="closeModal('edit-template-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-template-form">
+                    <input type="hidden" name="id">
+
+                    <div class="form-group">
+                        <label class="form-label">Template Name</label>
+                        <input type="text" name="name" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="3"></textarea>
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Price</label>
+                            <input type="number" name="price" class="form-control" min="0" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Factor</label>
+                            <input type="number" name="factor" class="form-control" min="0" step="0.1">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('edit-template-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitEditTemplate()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Admin')) throw new Error('Unauthorized');
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'tasks');
+
+        let templates = [];
+        let filteredTemplates = [];
+
+        async function loadTemplates() {
+            try {
+                showLoading();
+                const statusFilter = document.getElementById('status-filter').value;
+                const params = statusFilter === 'all' ? { includeInactive: true } : {};
+
+                templates = await api.getTaskTemplates(params);
+
+                // Filter by active/inactive status
+                if (statusFilter === 'inactive') {
+                    templates = templates.filter(t => !t.isActive);
+                } else if (statusFilter === 'active') {
+                    templates = templates.filter(t => t.isActive);
+                }
+
+                filteredTemplates = templates;
+                renderTemplates();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load templates: ' + error.message, 'error');
+            }
+        }
+
+        function renderTemplates() {
+            const container = document.getElementById('templates-container');
+
+            if (filteredTemplates.length === 0) {
+                container.innerHTML = createEmptyState('No task templates found');
+                return;
+            }
+
+            const rows = filteredTemplates.map(template => {
+                const statusBadge = template.isActive
+                    ? '<span class="badge badge-success">Active</span>'
+                    : '<span class="badge badge-secondary">Inactive</span>';
+
+                return {
+                    data: [
+                        utils.escapeHtml(template.name),
+                        utils.escapeHtml(template.description || '-'),
+                        utils.formatCurrency(template.price),
+                        template.factor,
+                        statusBadge,
+                        template.activeAssignments || 0,
+                        utils.formatDateReadable(template.createdAt)
+                    ],
+                    id: template.id,
+                    template: template
+                };
+            });
+
+            container.innerHTML = `
+        <div class="card">
+          ${createTable(
+                ['Name', 'Description', 'Price', 'Factor', 'Status', 'Active Assignments', 'Created'],
+                rows,
+                (row) => `
+              <button class="btn btn-sm btn-secondary" onclick="openEditTemplateModal(${row.id})">Edit</button>
+              ${row.template.isActive
+                        ? `<button class="btn btn-sm btn-warning" onclick="deactivateTemplate(${row.id})">Deactivate</button>`
+                        : `<button class="btn btn-sm btn-success" onclick="activateTemplate(${row.id})">Activate</button>`
+                    }
+            `
+            )}
+        </div>
+      `;
+        }
+
+        function applyFilters() {
+            const searchQuery = document.getElementById('search-input').value.toLowerCase();
+
+            filteredTemplates = templates.filter(template => {
+                const matchesSearch = template.name.toLowerCase().includes(searchQuery) ||
+                    (template.description && template.description.toLowerCase().includes(searchQuery));
+
+                return matchesSearch;
+            });
+
+            renderTemplates();
+        }
+
+        document.getElementById('search-input').addEventListener('input', applyFilters);
+        document.getElementById('status-filter').addEventListener('change', loadTemplates);
+
+        function openAddTemplateModal() {
+            document.getElementById('add-template-form').reset();
+            openModal('add-template-modal');
+        }
+
+        async function submitAddTemplate() {
+            const form = document.getElementById('add-template-form');
+            const formData = new FormData(form);
+
+            const data = {
+                name: formData.get('name'),
+                description: formData.get('description') || '',
+                price: parseFloat(formData.get('price')) || 0,
+                factor: parseFloat(formData.get('factor')) || 1
+            };
+
+            if (!data.name) {
+                showToast('Please enter a template name', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                await api.createTaskTemplate(data);
+                hideLoading();
+                showToast('Task template created successfully', 'success');
+                closeModal('add-template-modal');
+                loadTemplates();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to create template: ' + error.message, 'error');
+            }
+        }
+
+        function openEditTemplateModal(id) {
+            const template = templates.find(t => t.id === id);
+            if (!template) return;
+
+            const form = document.getElementById('edit-template-form');
+            form.elements.id.value = template.id;
+            form.elements.name.value = template.name;
+            form.elements.description.value = template.description || '';
+            form.elements.price.value = template.price;
+            form.elements.factor.value = template.factor;
+
+            openModal('edit-template-modal');
+        }
+
+        async function submitEditTemplate() {
+            const form = document.getElementById('edit-template-form');
+            const formData = new FormData(form);
+            const id = formData.get('id');
+
+            const data = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                price: parseFloat(formData.get('price')),
+                factor: parseFloat(formData.get('factor'))
+            };
+
+            try {
+                showLoading();
+                await api.updateTaskTemplate(id, data);
+                hideLoading();
+                showToast('Template updated successfully', 'success');
+                closeModal('edit-template-modal');
+                loadTemplates();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to update template: ' + error.message, 'error');
+            }
+        }
+
+        async function deactivateTemplate(id) {
+            const template = templates.find(t => t.id === id);
+            if (!template) return;
+
+            confirm(
+                `Are you sure you want to deactivate "${template.name}"?`,
+                async () => {
+                    try {
+                        showLoading();
+                        await api.deactivateTaskTemplate(id);
+                        hideLoading();
+                        showToast('Template deactivated successfully', 'success');
+                        loadTemplates();
+                    } catch (error) {
+                        hideLoading();
+                        showToast('Failed to deactivate template: ' + error.message, 'error');
+                    }
+                }
+            );
+        }
+
+        async function activateTemplate(id) {
+            // There's no activate endpoint, so we update the isActive field directly
+            try {
+                showLoading();
+                await api.updateTaskTemplate(id, { isActive: 1 });
+                hideLoading();
+                showToast('Template activated successfully', 'success');
+                loadTemplates();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to activate template: ' + error.message, 'error');
+            }
+        }
+
+        loadTemplates();
+    </script>
+</body>
+
+</html>

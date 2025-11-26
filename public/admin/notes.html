@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Notes - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>Employee Notes</h1>
+                <p class="text-muted">Add and manage notes for employees</p>
+            </div>
+
+            <div class="card">
+                <div class="form-group">
+                    <label class="form-label">Select Employee</label>
+                    <select id="employee-select" class="form-control">
+                        <option value="">Choose an employee...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="notes-section" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Notes for <span id="employee-name"></span></h3>
+                        <button class="btn btn-primary" onclick="openAddNoteModal()">
+                            ➕ Add Note
+                        </button>
+                    </div>
+                </div>
+
+                <div id="notes-container">
+                    <p class="text-muted">Loading notes...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Note Modal -->
+    <div id="add-note-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add Note</h3>
+                <button class="modal-close" onclick="closeModal('add-note-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-note-form">
+                    <div class="form-group">
+                        <label class="form-label">Note Content *</label>
+                        <textarea name="content" class="form-control" rows="5" required
+                            placeholder="Enter note content..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('add-note-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAddNote()">Add Note</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Admin')) throw new Error('Unauthorized');
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'notes');
+
+        let employees = [];
+        let notes = [];
+        let selectedEmployeeId = null;
+
+        async function loadEmployees() {
+            try {
+                employees = await api.getEmployees();
+
+                const select = document.getElementById('employee-select');
+                select.innerHTML = '<option value="">Choose an employee...</option>' +
+                    employees.map(emp =>
+                        `<option value="${emp.id}">${utils.escapeHtml(emp.name)}</option>`
+                    ).join('');
+            } catch (error) {
+                showToast('Failed to load employees: ' + error.message, 'error');
+            }
+        }
+
+        document.getElementById('employee-select').addEventListener('change', async (e) => {
+            selectedEmployeeId = e.target.value;
+
+            if (!selectedEmployeeId) {
+                document.getElementById('notes-section').style.display = 'none';
+                return;
+            }
+
+            const employee = employees.find(emp => emp.id == selectedEmployeeId);
+            document.getElementById('employee-name').textContent = employee.name;
+            document.getElementById('notes-section').style.display = 'block';
+
+            await loadNotes();
+        });
+
+        async function loadNotes() {
+            if (!selectedEmployeeId) return;
+
+            try {
+                showLoading();
+                notes = await api.getNotes(selectedEmployeeId);
+                renderNotes();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load notes: ' + error.message, 'error');
+            }
+        }
+
+        function renderNotes() {
+            const container = document.getElementById('notes-container');
+
+            if (notes.length === 0) {
+                container.innerHTML = createEmptyState('No notes found for this employee');
+                return;
+            }
+
+            container.innerHTML = notes.map(note => `
+        <div class="card">
+          <div class="flex-between">
+            <div style="flex: 1;">
+              <p style="white-space: pre-wrap;">${utils.escapeHtml(note.content)}</p>
+              <p class="text-muted" style="margin-top: var(--spacing-sm); font-size: 0.875rem;">
+                ${utils.formatDateTime(note.createdAt)}
+              </p>
+            </div>
+            <div>
+              <button class="btn btn-sm btn-danger" onclick="deleteNote(${note.id})">Delete</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+        }
+
+        function openAddNoteModal() {
+            document.getElementById('add-note-form').reset();
+            openModal('add-note-modal');
+        }
+
+        async function submitAddNote() {
+            if (!selectedEmployeeId) {
+                showToast('Please select an employee first', 'error');
+                return;
+            }
+
+            const form = document.getElementById('add-note-form');
+            const formData = new FormData(form);
+            const content = formData.get('content');
+
+            if (!content) {
+                showToast('Please enter note content', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                await api.createNote({
+                    employeeId: parseInt(selectedEmployeeId),
+                    content: content
+                });
+                hideLoading();
+                showToast('Note added successfully', 'success');
+                closeModal('add-note-modal');
+                loadNotes();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to add note: ' + error.message, 'error');
+            }
+        }
+
+        function deleteNote(id) {
+            confirm(
+                'Are you sure you want to delete this note?',
+                async () => {
+                    try {
+                        showLoading();
+                        await api.deleteNote(id);
+                        hideLoading();
+                        showToast('Note deleted successfully', 'success');
+                        loadNotes();
+                    } catch (error) {
+                        hideLoading();
+                        showToast('Failed to delete note: ' + error.message, 'error');
+                    }
+                }
+            );
+        }
+
+        loadEmployees();
+    </script>
+</body>
+
+</html>

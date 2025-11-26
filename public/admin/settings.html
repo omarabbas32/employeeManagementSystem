@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>System Settings</h1>
+                <p class="text-muted">Configure system-wide settings</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Attendance Code</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-1">Set the code that employees must enter during check-in</p>
+                    <form id="attendance-code-form" class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Current Code</label>
+                            <input type="text" id="current-code" class="form-control" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">New Code</label>
+                            <input type="text" id="new-code" class="form-control" placeholder="Enter new code">
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <button type="submit" class="btn btn-primary">Update Attendance Code</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">General Settings</h3>
+                </div>
+                <div class="card-body">
+                    <form id="settings-form">
+                        <div class="grid grid-2 gap-1">
+                            <div class="form-group">
+                                <label class="form-label">Normal Hours Threshold</label>
+                                <input type="number" name="normalHoursThreshold" class="form-control" min="0" step="1">
+                                <small class="text-muted">Hours threshold for overtime calculation</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Allow Task Overtime Factor</label>
+                                <select name="allowTaskOvertimeFactor" class="form-control">
+                                    <option value="true">Yes</option>
+                                    <option value="false">No</option>
+                                </select>
+                                <small class="text-muted">Apply overtime factor to task payments</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Allow Responsibility Deduction</label>
+                                <select name="allowResponsibilityDeduction" class="form-control">
+                                    <option value="true">Yes</option>
+                                    <option value="false">No</option>
+                                </select>
+                                <small class="text-muted">Allow deductions from responsibility payments</small>
+                            </div>
+                        </div>
+
+                        <div class="mt-2">
+                            <button type="submit" class="btn btn-primary">Save Settings</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Admin')) throw new Error('Unauthorized');
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'settings');
+
+        let currentSettings = null;
+
+        async function loadSettings() {
+            try {
+                showLoading();
+                currentSettings = await api.getSettings();
+
+                // Update attendance code
+                document.getElementById('current-code').value = currentSettings.attendanceCode || '';
+
+                // Update general settings
+                const form = document.getElementById('settings-form');
+                form.elements.normalHoursThreshold.value = currentSettings.normalHoursThreshold;
+                form.elements.allowTaskOvertimeFactor.value = currentSettings.allowTaskOvertimeFactor.toString();
+                form.elements.allowResponsibilityDeduction.value = currentSettings.allowResponsibilityDeduction.toString();
+
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load settings: ' + error.message, 'error');
+            }
+        }
+
+        document.getElementById('attendance-code-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const newCode = document.getElementById('new-code').value.trim();
+
+            if (!newCode) {
+                showToast('Please enter a new code', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                await api.updateAttendanceCode(newCode);
+                hideLoading();
+                showToast('Attendance code updated successfully', 'success');
+                document.getElementById('new-code').value = '';
+                loadSettings();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to update attendance code: ' + error.message, 'error');
+            }
+        });
+
+        document.getElementById('settings-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+
+            const data = {
+                normalHoursThreshold: parseInt(formData.get('normalHoursThreshold')),
+                allowTaskOvertimeFactor: formData.get('allowTaskOvertimeFactor') === 'true',
+                allowResponsibilityDeduction: formData.get('allowResponsibilityDeduction') === 'true'
+            };
+
+            try {
+                showLoading();
+                await api.updateSettings(data);
+                hideLoading();
+                showToast('Settings updated successfully', 'success');
+                loadSettings();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to update settings: ' + error.message, 'error');
+            }
+        });
+
+        loadSettings();
+    </script>
+</body>
+
+</html>

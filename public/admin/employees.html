@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Employees - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="card-header">
+                    <h1>Manage Employees</h1>
+                    <button class="btn btn-primary" onclick="openAddEmployeeModal()">
+                        ➕ Add Employee
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="form-group">
+                    <input type="text" id="search-input" class="form-control"
+                        placeholder="Search employees by name, email, or username...">
+                </div>
+            </div>
+
+            <div id="employees-container">
+                <p class="text-muted">Loading employees...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Employee Modal -->
+    <div id="add-employee-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add New Employee</h3>
+                <button class="modal-close" onclick="closeModal('add-employee-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-employee-form">
+                    <div class="form-group">
+                        <label class="form-label">Name *</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Username</label>
+                            <input type="text" name="username" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Password *</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Employee Type *</label>
+                            <select name="employeeType" class="form-control" id="employee-type-select" required>
+                                <option value="">Select type...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Base Salary</label>
+                            <input type="number" name="baseSalary" class="form-control" value="0" min="0">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Monthly Factor</label>
+                            <input type="number" name="monthlyFactor" class="form-control" value="1" step="0.1" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Overtime Factor</label>
+                            <input type="number" name="overtimeFactor" class="form-control" value="1.5" step="0.1"
+                                min="0">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('add-employee-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAddEmployee()">Add Employee</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Employee Modal -->
+    <div id="edit-employee-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Employee</h3>
+                <button class="modal-close" onclick="closeModal('edit-employee-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-employee-form">
+                    <input type="hidden" name="id">
+
+                    <div class="form-group">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="name" class="form-control">
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Username</label>
+                            <input type="text" name="username" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">New Password (leave blank to keep current)</label>
+                        <input type="password" name="password" class="form-control">
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Employee Type</label>
+                            <select name="employeeType" class="form-control" id="edit-employee-type-select">
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Base Salary</label>
+                            <input type="number" name="baseSalary" class="form-control" min="0">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Monthly Factor</label>
+                            <input type="number" name="monthlyFactor" class="form-control" step="0.1" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Overtime Factor</label>
+                            <input type="number" name="overtimeFactor" class="form-control" step="0.1" min="0">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('edit-employee-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitEditEmployee()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Admin')) throw new Error('Unauthorized');
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'employees');
+
+        let employees = [];
+        let employeeTypes = [];
+
+        async function loadEmployeeTypes() {
+            try {
+                employeeTypes = await api.getTypes();
+
+                const addSelect = document.getElementById('employee-type-select');
+                const editSelect = document.getElementById('edit-employee-type-select');
+
+                const options = employeeTypes.map(type =>
+                    `<option value="${utils.escapeHtml(type.name)}">${utils.escapeHtml(type.name)}</option>`
+                ).join('');
+
+                addSelect.innerHTML = '<option value="">Select type...</option>' + options;
+                editSelect.innerHTML = options;
+            } catch (error) {
+                showToast('Failed to load employee types: ' + error.message, 'error');
+            }
+        }
+
+        async function loadEmployees() {
+            try {
+                showLoading();
+                employees = await api.getEmployees();
+                renderEmployees(employees);
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load employees: ' + error.message, 'error');
+            }
+        }
+
+        function renderEmployees(employeeList) {
+            const container = document.getElementById('employees-container');
+
+            if (employeeList.length === 0) {
+                container.innerHTML = createEmptyState('No employees found');
+                return;
+            }
+
+            const rows = employeeList.map(emp => ({
+                data: [
+                    utils.escapeHtml(emp.name),
+                    utils.escapeHtml(emp.username || '-'),
+                    utils.escapeHtml(emp.email || '-'),
+                    utils.escapeHtml(emp.employeeType),
+                    utils.formatCurrency(emp.baseSalary)
+                ],
+                id: emp.id,
+                employee: emp
+            }));
+
+            container.innerHTML = `
+        <div class="card">
+          ${createTable(
+                ['Name', 'Username', 'Email', 'Type', 'Base Salary'],
+                rows,
+                (row) => `
+              <button class="btn btn-sm btn-secondary" onclick="openEditEmployeeModal(${row.id})">Edit</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteEmployee(${row.id})">Delete</button>
+            `
+            )}
+        </div>
+      `;
+        }
+
+        function openAddEmployeeModal() {
+            document.getElementById('add-employee-form').reset();
+            openModal('add-employee-modal');
+        }
+
+        async function submitAddEmployee() {
+            const form = document.getElementById('add-employee-form');
+            const formData = new FormData(form);
+
+            const data = {
+                name: formData.get('name'),
+                username: formData.get('username') || undefined,
+                email: formData.get('email') || undefined,
+                password: formData.get('password'),
+                employeeType: formData.get('employeeType'),
+                baseSalary: parseFloat(formData.get('baseSalary')) || 0,
+                monthlyFactor: parseFloat(formData.get('monthlyFactor')) || 1,
+                overtimeFactor: parseFloat(formData.get('overtimeFactor')) || 1.5,
+                notes: formData.get('notes') || ''
+            };
+
+            if (!data.name || !data.password || !data.employeeType) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+
+            if (!data.username && !data.email) {
+                showToast('Please provide either username or email', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                await api.createEmployee(data);
+                hideLoading();
+                showToast('Employee added successfully', 'success');
+                closeModal('add-employee-modal');
+                loadEmployees();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to add employee: ' + error.message, 'error');
+            }
+        }
+
+        function openEditEmployeeModal(id) {
+            const employee = employees.find(e => e.id === id);
+            if (!employee) return;
+
+            const form = document.getElementById('edit-employee-form');
+            form.elements.id.value = employee.id;
+            form.elements.name.value = employee.name;
+            form.elements.username.value = employee.username || '';
+            form.elements.email.value = employee.email || '';
+            form.elements.employeeType.value = employee.employeeType;
+            form.elements.baseSalary.value = employee.baseSalary;
+            form.elements.monthlyFactor.value = employee.monthlyFactor;
+            form.elements.overtimeFactor.value = employee.overtimeFactor;
+            form.elements.notes.value = employee.notes || '';
+
+            openModal('edit-employee-modal');
+        }
+
+        async function submitEditEmployee() {
+            const form = document.getElementById('edit-employee-form');
+            const formData = new FormData(form);
+            const id = formData.get('id');
+
+            const data = {
+                name: formData.get('name'),
+                username: formData.get('username') || undefined,
+                email: formData.get('email') || undefined,
+                employeeType: formData.get('employeeType'),
+                baseSalary: parseFloat(formData.get('baseSalary')),
+                monthlyFactor: parseFloat(formData.get('monthlyFactor')),
+                overtimeFactor: parseFloat(formData.get('overtimeFactor')),
+                notes: formData.get('notes')
+            };
+
+            const password = formData.get('password');
+            if (password) {
+                data.password = password;
+            }
+
+            try {
+                showLoading();
+                await api.updateEmployee(id, data);
+                hideLoading();
+                showToast('Employee updated successfully', 'success');
+                closeModal('edit-employee-modal');
+                loadEmployees();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to update employee: ' + error.message, 'error');
+            }
+        }
+
+        function deleteEmployee(id) {
+            const employee = employees.find(e => e.id === id);
+            if (!employee) return;
+
+            confirm(
+                `Are you sure you want to delete ${employee.name}? This will also delete all associated records.`,
+                async () => {
+                    try {
+                        showLoading();
+                        await api.deleteEmployee(id);
+                        hideLoading();
+                        showToast('Employee deleted successfully', 'success');
+                        loadEmployees();
+                    } catch (error) {
+                        hideLoading();
+                        showToast('Failed to delete employee: ' + error.message, 'error');
+                    }
+                }
+            );
+        }
+
+        // Search functionality
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = employees.filter(emp =>
+                emp.name.toLowerCase().includes(query) ||
+                (emp.email && emp.email.toLowerCase().includes(query)) ||
+                (emp.username && emp.username.toLowerCase().includes(query))
+            );
+            renderEmployees(filtered);
+        });
+
+        // Initialize
+        loadEmployeeTypes();
+        loadEmployees();
+    </script>
+</body>
+
+</html>

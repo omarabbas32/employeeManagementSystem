@@ -8,7 +8,7 @@ router.get(
   '/',
   authorizeRoles('admin'),
   asyncHandler(async (req, res) => {
-    const rules = await DeductionController.listDeductions();
+    const rules = await DeductionController.listDeductions(req.user);
     res.json(rules);
   })
 );
@@ -41,4 +41,3 @@ router.delete(
 );
 
 module.exports = router;
-

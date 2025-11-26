@@ -1,6 +1,6 @@
 const { allAsync, getAsync, runAsync } = require('../Data/database');
 
-const listResponsibilities = (filters = {}) => {
+const listResponsibilities = async (filters = {}) => {
   const conditions = [];
   const params = [];
 
@@ -10,15 +10,19 @@ const listResponsibilities = (filters = {}) => {
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  return allAsync(`SELECT * FROM responsibilities ${whereClause} ORDER BY id DESC`, params);
+  const responsibilities = await allAsync(`SELECT * FROM responsibilities ${whereClause} ORDER BY id DESC`, params);
+  // Map 'name' to 'title' for frontend compatibility
+  return responsibilities.map(resp => ({ ...resp, title: resp.name }));
 };
 
 const createResponsibility = async (payload) => {
-  const { name, description = '', monthlyPrice = 0, assignedEmployeeId, assignedBy = 'admin', status = 'Not Done', factor } =
+  // Accept both 'title' and 'name' for compatibility
+  const name = payload.title || payload.name;
+  const { description = '', monthlyPrice = 0, assignedEmployeeId, assignedBy = 'admin', status = 'Active', factor = 1 } =
     payload;
 
   if (!name || !assignedEmployeeId) {
-    throw new Error('name and assignedEmployeeId are required');
+    throw new Error('title and assignedEmployeeId are required');
   }
 
   const result = await runAsync(
@@ -27,7 +31,8 @@ const createResponsibility = async (payload) => {
     [name, description, monthlyPrice, assignedEmployeeId, assignedBy, status, factor]
   );
 
-  return getAsync(`SELECT * FROM responsibilities WHERE id = ?`, [result.lastID]);
+  const responsibility = await getAsync(`SELECT * FROM responsibilities WHERE id = ?`, [result.lastID]);
+  return { ...responsibility, title: responsibility.name };
 };
 
 const updateResponsibility = async (id, payload) => {
@@ -38,8 +43,9 @@ const updateResponsibility = async (id, payload) => {
     throw error;
   }
 
+  const name = payload.title || payload.name;
   const updated = {
-    name: payload.name ?? responsibility.name,
+    name: name ?? responsibility.name,
     description: payload.description ?? responsibility.description,
     monthlyPrice: payload.monthlyPrice ?? responsibility.monthlyPrice,
     assignedEmployeeId: payload.assignedEmployeeId ?? responsibility.assignedEmployeeId,
@@ -55,7 +61,8 @@ const updateResponsibility = async (id, payload) => {
     [updated.name, updated.description, updated.monthlyPrice, updated.assignedEmployeeId, updated.assignedBy, updated.status, updated.factor, id]
   );
 
-  return getAsync(`SELECT * FROM responsibilities WHERE id = ?`, [id]);
+  const updatedResp = await getAsync(`SELECT * FROM responsibilities WHERE id = ?`, [id]);
+  return { ...updatedResp, title: updatedResp.name };
 };
 
 const deleteResponsibility = async (id) => {
@@ -69,4 +76,3 @@ module.exports = {
   updateResponsibility,
   deleteResponsibility,
 };
-

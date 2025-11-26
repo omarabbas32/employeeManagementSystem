@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance - Manager - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>My Attendance</h1>
+                <p class="text-muted">Track your attendance and working hours</p>
+            </div>
+
+            <!-- Today's Sessions Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Today's Attendance Sessions</h3>
+                </div>
+                <div class="card-body">
+                    <div class="flex gap-1 mb-2">
+                        <button class="btn btn-success" onclick="promptCheckIn()">
+                            ✅ Check In
+                        </button>
+                        <button class="btn btn-danger" onclick="promptCheckOut()">
+                            🚪 Check Out
+                        </button>
+                    </div>
+
+                    <div id="today-sessions" class="mt-2">
+                        <p class="text-muted">Loading today's sessions...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance History Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Attendance History</h3>
+                    <div class="form-group" style="margin: 0; max-width: 200px;">
+                        <select id="month-select" class="form-control">
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body" id="attendance-history">
+                    <p class="text-muted">Loading attendance history...</p>
+                </div>
+            </div>
+
+            <!-- Monthly Summary Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Monthly Summary</h3>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-4">
+                        <div style="text-align: center;">
+                            <h3 id="total-sessions">0</h3>
+                            <p class="text-muted">Total Sessions</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <h3 id="total-days">0</h3>
+                            <p class="text-muted">Days Worked</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <h3 id="total-hours">0</h3>
+                            <p class="text-muted">Total Hours</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <h3 id="avg-hours">0</h3>
+                            <p class="text-muted">Avg Hours/Day</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init()) throw new Error('Unauthorized');
+
+        const user = auth.getCurrentUser();
+        document.getElementById('sidebar-container').innerHTML = createSidebar(user.employeeType, 'attendance');
+
+        let attendanceRecords = [];
+        let todaySessions = [];
+
+        // Generate month options
+        function generateMonthOptions() {
+            const select = document.getElementById('month-select');
+            const options = [];
+            const now = new Date();
+
+            for (let i = 0; i < 12; i++) {
+                const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const value = `${year}-${month}`;
+                const label = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+                options.push(`<option value="${value}">${label}</option>`);
+            }
+
+            select.innerHTML = options.join('');
+        }
+
+        document.getElementById('month-select').addEventListener('change', loadAttendance);
+
+        // Load today's sessions
+        async function loadTodaySessions() {
+            try {
+                todaySessions = await api.getTodaySessions(user.id);
+                renderTodaySessions();
+            } catch (error) {
+                console.error('Failed to load today sessions:', error);
+                document.getElementById('today-sessions').innerHTML =
+                    '<p class="text-muted">No sessions today</p>';
+            }
+        }
+
+        // Render today's sessions
+        function renderTodaySessions() {
+            const container = document.getElementById('today-sessions');
+
+            if (todaySessions.length === 0) {
+                container.innerHTML = '<p class="text-muted">No check-ins today. Click "Check In" to start.</p>';
+                return;
+            }
+
+            const html = todaySessions.map((session, index) => {
+                const isActive = !session.checkOut;
+                const statusClass = isActive ? 'success' : 'secondary';
+                const statusText = isActive ? 'Active' : 'Completed';
+
+                return `
+                    <div class="session-card mb-1" style="padding: 1rem; background: var(--gray-50); border-radius: 8px; border-left: 4px solid var(--primary);">
+                        <div class="flex" style="justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>Session ${index + 1}</strong>
+                                <span class="badge badge-${statusClass}" style="margin-left: 0.5rem;">${statusText}</span>
+                            </div>
+                            <div style="text-align: right;">
+                                ${session.totalHours > 0 ?
+                        `<strong style="color: var(--primary); font-size: 1.2rem;">${session.totalHours.toFixed(2)}h</strong>`
+                        : ''}
+                            </div>
+                        </div>
+                        <div class="mt-1" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <small class="text-muted">Check In</small>
+                                <div>${utils.formatTime(session.checkIn)}</div>
+                            </div>
+                            <div>
+                                <small class="text-muted">Check Out</small>
+                                <div>${session.checkOut ? utils.formatTime(session.checkOut) : '<span class="text-muted">—</span>'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const totalToday = todaySessions.reduce((sum, s) => sum + (s.totalHours || 0), 0);
+
+            container.innerHTML = html + `
+                <div class="mt-2" style="text-align: right; font-size: 0.9rem;">
+                    <strong>Total Today:</strong> <span style="color: var(--primary); font-weight: 600;">${totalToday.toFixed(2)} hours</span>
+                </div>
+            `;
+        }
+
+        // Load attendance history
+        async function loadAttendance() {
+            const month = document.getElementById('month-select').value;
+
+            try {
+                showLoading();
+                attendanceRecords = await api.getAttendance(user.id, { month });
+
+                renderAttendanceHistory();
+                await calculateMonthlySummary(month);
+
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load attendance: ' + error.message, 'error');
+            }
+        }
+
+        // Render attendance history
+        function renderAttendanceHistory() {
+            const container = document.getElementById('attendance-history');
+
+            if (attendanceRecords.length === 0) {
+                container.innerHTML = '<p class="text-muted">No attendance records for this month</p>';
+                return;
+            }
+
+            // Group by date
+            const byDate = {};
+            attendanceRecords.forEach(record => {
+                if (!byDate[record.date]) byDate[record.date] = [];
+                byDate[record.date].push(record);
+            });
+
+            const rows = Object.keys(byDate).sort().reverse().map(date => {
+                const sessions = byDate[date];
+                const completedSessions = sessions.filter(s => s.checkOut);
+                const totalHours = sessions.reduce((sum, s) => sum + (s.totalHours || 0), 0);
+
+                return {
+                    data: [
+                        utils.formatDateReadable(date),
+                        sessions.length + ' session(s)',
+                        completedSessions.length + ' completed',
+                        totalHours ? totalHours.toFixed(2) + ' hours' : '-'
+                    ]
+                };
+            });
+
+            container.innerHTML = createTable(
+                ['Date', 'Sessions', 'Completed', 'Total Hours'],
+                rows
+            );
+        }
+
+        // Calculate monthly summary
+        async function calculateMonthlySummary(month) {
+            try {
+                const summary = await api.getMonthlyTotal(user.id, { month });
+
+                document.getElementById('total-sessions').textContent = summary.totalSessions || 0;
+                document.getElementById('total-days').textContent = summary.daysWorked || 0;
+                document.getElementById('total-hours').textContent = (summary.totalHours || 0).toFixed(1);
+                document.getElementById('avg-hours').textContent = summary.avgHoursPerDay || 0;
+            } catch (error) {
+                console.error('Failed to load monthly summary:', error);
+            }
+        }
+
+        // Prompt for attendance code and check in
+        async function promptCheckIn() {
+            const code = prompt('Please enter the attendance code provided by admin:');
+
+            if (!code) {
+                showToast('Attendance code is required', 'warning');
+                return;
+            }
+
+            try {
+                showLoading();
+                await api.checkIn(user.id, code);
+                hideLoading();
+                showToast('✅ Checked in successfully!', 'success');
+                loadTodaySessions();
+                loadAttendance();
+            } catch (error) {
+                hideLoading();
+                showToast('Check-in failed: ' + error.message, 'error');
+            }
+        }
+
+        // Prompt for attendance code and check out
+        async function promptCheckOut() {
+            const code = prompt('Please enter the attendance code to check out:');
+
+            if (!code) {
+                showToast('Attendance code is required', 'warning');
+                return;
+            }
+
+            try {
+                showLoading();
+                await api.checkOut(user.id, code);
+                hideLoading();
+                showToast('🚪 Checked out successfully!', 'success');
+                loadTodaySessions();
+                loadAttendance();
+            } catch (error) {
+                hideLoading();
+                showToast('Check-out failed: ' + error.message, 'error');
+            }
+        }
+
+        // Initialize
+        generateMonthOptions();
+        loadTodaySessions();
+        loadAttendance();
+
+        // Refresh today's sessions every 30 seconds
+        setInterval(loadTodaySessions, 30000);
+    </script>
+</body>
+
+</html>

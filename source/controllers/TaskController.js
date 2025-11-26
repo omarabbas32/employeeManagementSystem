@@ -1,6 +1,6 @@
 const { allAsync, getAsync, runAsync } = require('../Data/database');
 
-const listTasks = (filters = {}) => {
+const listTasks = async (filters = {}) => {
   const conditions = [];
   const params = [];
 
@@ -15,15 +15,19 @@ const listTasks = (filters = {}) => {
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  return allAsync(`SELECT * FROM tasks ${whereClause} ORDER BY id DESC`, params);
+  const tasks = await allAsync(`SELECT * FROM tasks ${whereClause} ORDER BY id DESC`, params);
+  // Map 'name' to 'title' for frontend compatibility
+  return tasks.map(task => ({ ...task, title: task.name }));
 };
 
 const createTask = async (payload) => {
-  const { name, description = '', price = 0, assignedEmployeeId, assignedBy, status = 'Not Done', startDate, dueDate, factor } =
+  // Accept both 'title' and 'name' for compatibility
+  const name = payload.title || payload.name;
+  const { description = '', price = 0, assignedEmployeeId, assignedBy, status = 'Pending', startDate, dueDate, factor = 1 } =
     payload;
 
   if (!name || !assignedEmployeeId) {
-    throw new Error('name and assignedEmployeeId are required');
+    throw new Error('title and assignedEmployeeId are required');
   }
 
   const result = await runAsync(
@@ -32,7 +36,9 @@ const createTask = async (payload) => {
     [name, description, price, assignedEmployeeId, assignedBy || 'managerial', status, startDate, dueDate, factor]
   );
 
-  return getAsync(`SELECT * FROM tasks WHERE id = ?`, [result.lastID]);
+  const task = await getAsync(`SELECT * FROM tasks WHERE id = ?`, [result.lastID]);
+  // Return with 'title' field for frontend compatibility
+  return { ...task, title: task.name };
 };
 
 const updateTask = async (id, payload) => {
@@ -43,8 +49,9 @@ const updateTask = async (id, payload) => {
     throw error;
   }
 
+  const name = payload.title || payload.name;
   const updatedTask = {
-    name: payload.name ?? task.name,
+    name: name ?? task.name,
     description: payload.description ?? task.description,
     price: payload.price ?? task.price,
     assignedEmployeeId: payload.assignedEmployeeId ?? task.assignedEmployeeId,
@@ -74,7 +81,8 @@ const updateTask = async (id, payload) => {
     ]
   );
 
-  return getAsync(`SELECT * FROM tasks WHERE id = ?`, [id]);
+  const updated = await getAsync(`SELECT * FROM tasks WHERE id = ?`, [id]);
+  return { ...updated, title: updated.name };
 };
 
 const deleteTask = async (id) => {
@@ -88,4 +96,3 @@ module.exports = {
   updateTask,
   deleteTask,
 };
-

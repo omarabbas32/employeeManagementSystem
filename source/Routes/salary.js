@@ -25,5 +25,14 @@ router.post(
   })
 );
 
-module.exports = router;
+// NEW: Generate detailed invoice for a specific employee
+router.get(
+  '/invoice/:employeeId',
+  authorizeRoles('admin'),
+  asyncHandler(async (req, res) => {
+    const invoice = await SalaryController.generateEmployeeInvoice(req.params.employeeId, req.query.month);
+    res.json(invoice);
+  })
+);
 
+module.exports = router;

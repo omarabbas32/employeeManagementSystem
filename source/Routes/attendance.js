@@ -40,5 +40,30 @@ router.get(
   })
 );
 
-module.exports = router;
+// NEW: Get today's sessions for an employee
+router.get(
+  '/:employeeId/today',
+  asyncHandler(async (req, res) => {
+    const requestedId = Number(req.params.employeeId);
+    if (!req.user.isAdmin && req.user.role !== 'managerial' && requestedId !== Number(req.user.id)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    const sessions = await AttendanceController.getTodaySessions(req.params.employeeId);
+    res.json(sessions);
+  })
+);
 
+// NEW: Get monthly total for an employee
+router.get(
+  '/:employeeId/monthly-total',
+  asyncHandler(async (req, res) => {
+    const requestedId = Number(req.params.employeeId);
+    if (!req.user.isAdmin && req.user.role !== 'managerial' && requestedId !== Number(req.user.id)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    const total = await AttendanceController.getMonthlyTotal(req.params.employeeId, req.query.month);
+    res.json(total);
+  })
+);
+
+module.exports = router;

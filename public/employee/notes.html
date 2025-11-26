@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Notes - Employee - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>My Notes</h1>
+                <p class="text-muted">View notes from your manager and admin</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Notes from Admin</h3>
+                    <span id="notes-count" class="badge badge-primary">0</span>
+                </div>
+                <div class="card-body" id="notes-list">
+                    <p class="text-muted">Loading notes...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init()) throw new Error('Unauthorized');
+
+        const user = auth.getCurrentUser();
+        document.getElementById('sidebar-container').innerHTML = createSidebar(user.employeeType, 'notes');
+
+        let notes = [];
+
+        async function loadNotes() {
+            try {
+                showLoading();
+                notes = await api.getNotes(user.id);
+                renderNotes();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load notes: ' + error.message, 'error');
+                document.getElementById('notes-list').innerHTML =
+                    '<p class="text-muted">Failed to load notes</p>';
+            }
+        }
+
+        function renderNotes() {
+            const container = document.getElementById('notes-list');
+            const countBadge = document.getElementById('notes-count');
+
+            countBadge.textContent = notes.length;
+
+            if (notes.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 3rem;">
+                        <p class="text-muted" style="font-size: 1.1rem;">📝 No notes yet</p>
+                        <p class="text-muted">Your admin will add notes here when needed</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = notes.map(note => `
+                <div class="note-card" style="
+                    padding: 1.5rem;
+                    margin-bottom: 1rem;
+                    background: white;
+                    border-radius: 8px;
+                    border-left: 4px solid var(--primary);
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                ">
+                    <div class="flex" style="justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                        <div>
+                            <small class="text-muted">From: ${note.author || 'Admin'}</small>
+                        </div>
+                        <div style="text-align: right;">
+                            <small class="text-muted">${utils.formatDateReadable(note.createdAt)}</small>
+                        </div>
+                    </div>
+                    <div style="
+                        padding: 1rem;
+                        background: var(--gray-50);
+                        border-radius: 4px;
+                        line-height: 1.6;
+                    ">
+                        ${note.content}
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        loadNotes();
+    </script>
+</body>
+
+</html>

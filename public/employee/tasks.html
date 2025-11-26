@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tasks - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="card-header">
+                    <h1>My Tasks</h1>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="grid grid-2 gap-1">
+                    <div class="form-group">
+                        <input type="text" id="search-input" class="form-control" placeholder="Search tasks...">
+                    </div>
+                    <div class="form-group">
+                        <select id="status-filter" class="form-control">
+                            <option value="">All Statuses</option>
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Done">Done</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tasks-container">
+                <p class="text-muted">Loading tasks...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Details Modal -->
+    <div id="task-details-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Task Details</h3>
+                <button class="modal-close" onclick="closeModal('task-details-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="task-details-form">
+                    <input type="hidden" name="assignmentId">
+
+                    <div class="form-group">
+                        <label class="form-label">Task Name</label>
+                        <input type="text" name="taskName" class="form-control" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="3" readonly></textarea>
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Price</label>
+                            <input type="text" name="price" class="form-control" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Factor</label>
+                            <input type="text" name="factor" class="form-control" readonly>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Assigned Date</label>
+                            <input type="text" name="assignedDate" class="form-control" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Due Date</label>
+                            <input type="text" name="dueDate" class="form-control" readonly>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Update Status</label>
+                        <select name="status" class="form-control">
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Done">Done</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('task-details-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitUpdateStatus()">Update Status</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Assistant')) throw new Error('Unauthorized');
+
+        const user = auth.getCurrentUser();
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Assistant', 'tasks');
+
+        let tasks = [];
+        let filteredTasks = [];
+
+        async function loadTasks() {
+            try {
+                showLoading();
+                // Load task assignments for current employee
+                tasks = await api.getTaskAssignments({ employeeId: user.id });
+                filteredTasks = tasks;
+                renderTasks();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load tasks: ' + error.message, 'error');
+            }
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasks-container');
+
+            if (filteredTasks.length === 0) {
+                container.innerHTML = createEmptyState('No tasks assigned to you');
+                return;
+            }
+
+            // Group by status for better UI
+            const pending = filteredTasks.filter(t => t.status === 'Pending');
+            const inProgress = filteredTasks.filter(t => t.status === 'In Progress');
+            const done = filteredTasks.filter(t => t.status === 'Done');
+
+            let html = '';
+
+            // Pending Tasks
+            if (pending.length > 0) {
+                html += renderTaskGroup('Pending Tasks', pending, 'badge-warning');
+            }
+
+            // In Progress Tasks
+            if (inProgress.length > 0) {
+                html += renderTaskGroup('In Progress', inProgress, 'badge-primary');
+            }
+
+            // Completed Tasks
+            if (done.length > 0) {
+                html += renderTaskGroup('Completed Tasks', done, 'badge-success');
+            }
+
+            container.innerHTML = html;
+        }
+
+        function renderTaskGroup(title, tasks, badgeClass) {
+            const rows = tasks.map(task => {
+                return {
+                    data: [
+                        utils.escapeHtml(task.templateName),
+                        utils.escapeHtml(task.templateDescription || '-'),
+                        `<span class="badge ${badgeClass}">${task.status}</span>`,
+                        utils.formatDateReadable(task.createdAt),
+                        task.dueDate ? utils.formatDateReadable(task.dueDate) : '-'
+                    ],
+                    id: task.id,
+                    task: task
+                };
+            });
+
+            return `
+        <div class="card">
+          <h3 style="margin-bottom: var(--spacing-md);">${title} (${tasks.length})</h3>
+          ${createTable(
+                ['Task', 'Description', 'Status', 'Assigned', 'Due Date'],
+                rows,
+                (row) => `
+              <button class="btn btn-sm btn-secondary" onclick="openTaskDetailsModal(${row.id})">View & Update</button>
+            `
+            )}
+        </div>
+      `;
+        }
+
+        function applyFilters() {
+            const searchQuery = document.getElementById('search-input').value.toLowerCase();
+            const statusFilter = document.getElementById('status-filter').value;
+
+            filteredTasks = tasks.filter(task => {
+                const matchesSearch = task.templateName.toLowerCase().includes(searchQuery) ||
+                    (task.templateDescription && task.templateDescription.toLowerCase().includes(searchQuery));
+                const matchesStatus = !statusFilter || task.status === statusFilter;
+
+                return matchesSearch && matchesStatus;
+            });
+
+            renderTasks();
+        }
+
+        document.getElementById('search-input').addEventListener('input', applyFilters);
+        document.getElementById('status-filter').addEventListener('change', applyFilters);
+
+        function openTaskDetailsModal(assignmentId) {
+            const task = tasks.find(t => t.id === assignmentId);
+            if (!task) return;
+
+            const form = document.getElementById('task-details-form');
+            form.elements.assignmentId.value = task.id;
+            form.elements.taskName.value = task.templateName;
+            form.elements.description.value = task.templateDescription || '';
+            form.elements.price.value = utils.formatCurrency(task.templatePrice || 0);
+            form.elements.factor.value = task.templateFactor || 1;
+            form.elements.assignedDate.value = utils.formatDateReadable(task.createdAt);
+            form.elements.dueDate.value = task.dueDate ? utils.formatDateReadable(task.dueDate) : 'Not set';
+            form.elements.status.value = task.status;
+
+            openModal('task-details-modal');
+        }
+
+        async function submitUpdateStatus() {
+            const form = document.getElementById('task-details-form');
+            const formData = new FormData(form);
+            const assignmentId = formData.get('assignmentId');
+            const newStatus = formData.get('status');
+
+            try {
+                showLoading();
+                await api.updateAssignmentStatus(assignmentId, newStatus);
+                hideLoading();
+                showToast('Task status updated successfully', 'success');
+                closeModal('task-details-modal');
+                loadTasks();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to update status: ' + error.message, 'error');
+            }
+        }
+
+        loadTasks();
+    </script>
+</body>
+
+</html>

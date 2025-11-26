@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Management - Manager - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="card-header">
+                    <h1>Task Management</h1>
+                </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="card">
+                <div style="display: flex; gap: var(--spacing-md); border-bottom: 2px solid var(--gray-200);">
+                    <button id="tab-templates-btn" class="tab-button active" onclick="switchTab('templates')">
+                        📋 Task Templates
+                    </button>
+                    <button id="tab-assignments-btn" class="tab-button" onclick="switchTab('assignments')">
+                        ✅ Task Assignments
+                    </button>
+                </div>
+            </div>
+
+            <!-- Templates Tab -->
+            <div id="tab-templates" class="tab-content active">
+                <div class="card">
+                    <div class="form-group">
+                        <input type="text" id="template-search-input" class="form-control"
+                            placeholder="Search templates...">
+                    </div>
+                </div>
+
+                <div id="templates-container">
+                    <p class="text-muted">Loading templates...</p>
+                </div>
+            </div>
+
+            <!-- Assignments Tab -->
+            <div id="tab-assignments" class="tab-content" style="display: none;">
+                <div class="card">
+                    <div class="grid grid-3 gap-1">
+                        <div class="form-group">
+                            <input type="text" id="assignment-search-input" class="form-control"
+                                placeholder="Search assignments...">
+                        </div>
+                        <div class="form-group">
+                            <select id="assignment-status-filter" class="form-control">
+                                <option value="">All Statuses</option>
+                                <option value="Pending">Pending</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Done">Done</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <select id="assignment-employee-filter" class="form-control">
+                                <option value="">All Employees</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="assignments-container">
+                    <p class="text-muted">Loading assignments...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Task Modal -->
+    <div id="assign-task-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Assign Task to Employee</h3>
+                <button class="modal-close" onclick="closeModal('assign-task-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="assign-task-form">
+                    <input type="hidden" name="templateId">
+
+                    <div class="form-group">
+                        <label class="form-label">Task Template</label>
+                        <input type="text" name="templateName" class="form-control" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea name="templateDescription" class="form-control" rows="2" readonly></textarea>
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Price</label>
+                            <input type="text" name="templatePrice" class="form-control" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Factor</label>
+                            <input type="text" name="templateFactor" class="form-control" readonly>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="form-group">
+                        <label class="form-label">Assign To *</label>
+                        <select name="assignedEmployeeId" class="form-control" id="assign-employee-select" required>
+                            <option value="">Select employee...</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Start Date (Optional)</label>
+                            <input type="date" name="startDate" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Due Date (Optional)</label>
+                            <input type="date" name="dueDate" class="form-control">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('assign-task-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAssignTask()">Assign Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Assignment Modal -->
+    <div id="manage-assignment-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Manage Task Assignment</h3>
+                <button class="modal-close" onclick="closeModal('manage-assignment-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="manage-assignment-form">
+                    <input type="hidden" name="assignmentId">
+
+                    <div class="form-group">
+                        <label class="form-label">Task Template</label>
+                        <input type="text" name="templateName" class="form-control" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Reassign To</label>
+                        <select name="assignedEmployeeId" class="form-control" id="manage-employee-select">
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Update Status</label>
+                        <select name="status" class="form-control">
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Done">Done</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="deleteAssignmentFromModal()">Delete Assignment</button>
+                <button class="btn btn-secondary" onclick="closeModal('manage-assignment-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitManageAssignment()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Managerial')) throw new Error('Unauthorized');
+
+        const user = auth.getCurrentUser();
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Managerial', 'tasks');
+
+        let templates = [];
+        let assignments = [];
+        let employees = [];
+        let filteredTemplates = [];
+        let filteredAssignments = [];
+        let currentTab = 'templates';
+
+        // Tab switching
+        function switchTab(tab) {
+            currentTab = tab;
+
+            // Update active tab buttons
+            document.getElementById('tab-templates-btn').classList.toggle('active', tab === 'templates');
+            document.getElementById('tab-assignments-btn').classList.toggle('active', tab === 'assignments');
+
+            // Show/hide tab content
+            document.getElementById('tab-templates').style.display = tab === 'templates' ? 'block' : 'none';
+            document.getElementById('tab-assignments').style.display = tab === 'assignments' ? 'block' : 'none';
+
+            if (tab === 'templates') {
+                loadTemplates();
+            } else {
+                loadAssignments();
+            }
+        }
+
+        // Load employees
+        async function loadEmployees() {
+            try {
+                employees = await api.getEmployees();
+
+                const assignSelect = document.getElementById('assign-employee-select');
+                const manageSelect = document.getElementById('manage-employee-select');
+                const filterSelect = document.getElementById('assignment-employee-filter');
+
+                const options = employees.map(emp =>
+                    `<option value="${emp.id}">${utils.escapeHtml(emp.name)}</option>`
+                ).join('');
+
+                assignSelect.innerHTML = '<option value="">Select employee...</option>' + options;
+                manageSelect.innerHTML = options;
+                filterSelect.innerHTML = '<option value="">All Employees</option>' + options;
+            } catch (error) {
+                showToast('Failed to load employees: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== TEMPLATES TAB ====================
+
+        async function loadTemplates() {
+            try {
+                showLoading();
+                templates = await api.getTaskTemplates();
+                filteredTemplates = templates;
+                renderTemplates();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load templates: ' + error.message, 'error');
+            }
+        }
+
+        function renderTemplates() {
+            const container = document.getElementById('templates-container');
+
+            if (filteredTemplates.length === 0) {
+                container.innerHTML = createEmptyState('No task templates available');
+                return;
+            }
+
+            const rows = filteredTemplates.map(template => {
+                return {
+                    data: [
+                        utils.escapeHtml(template.name),
+                        utils.escapeHtml(template.description || '-'),
+                        utils.formatCurrency(template.price),
+                        template.factor,
+                        template.activeAssignments || 0
+                    ],
+                    id: template.id,
+                    template: template
+                };
+            });
+
+            container.innerHTML = `
+        <div class="card">
+          ${createTable(
+                ['Name', 'Description', 'Price', 'Factor', 'Active Assignments'],
+                rows,
+                (row) => `
+              <button class="btn btn-sm btn-primary" onclick="openAssignModal(${row.id})">Assign to Employee</button>
+            `
+            )}
+        </div>
+      `;
+        }
+
+        function applyTemplateFilters() {
+            const searchQuery = document.getElementById('template-search-input').value.toLowerCase();
+
+            filteredTemplates = templates.filter(template => {
+                const matchesSearch = template.name.toLowerCase().includes(searchQuery) ||
+                    (template.description && template.description.toLowerCase().includes(searchQuery));
+                return matchesSearch;
+            });
+
+            renderTemplates();
+        }
+
+        document.getElementById('template-search-input').addEventListener('input', applyTemplateFilters);
+
+        function openAssignModal(templateId) {
+            const template = templates.find(t => t.id === templateId);
+            if (!template) return;
+
+            const form = document.getElementById('assign-task-form');
+            form.elements.templateId.value = template.id;
+            form.elements.templateName.value = template.name;
+            form.elements.templateDescription.value = template.description || '';
+            form.elements.templatePrice.value = utils.formatCurrency(template.price);
+            form.elements.templateFactor.value = template.factor;
+            form.elements.assignedEmployeeId.value = '';
+            form.elements.startDate.value = '';
+            form.elements.dueDate.value = '';
+
+            openModal('assign-task-modal');
+        }
+
+        async function submitAssignTask() {
+            const form = document.getElementById('assign-task-form');
+            const formData = new FormData(form);
+
+            const data = {
+                templateId: parseInt(formData.get('templateId')),
+                assignedEmployeeId: parseInt(formData.get('assignedEmployeeId')),
+                assignedBy: user.name || 'Manager',
+                startDate: formData.get('startDate') || null,
+                dueDate: formData.get('dueDate') || null
+            };
+
+            if (!data.assignedEmployeeId) {
+                showToast('Please select an employee', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                await api.createTaskAssignment(data);
+                hideLoading();
+                showToast('Task assigned successfully', 'success');
+                closeModal('assign-task-modal');
+                loadTemplates(); // Refresh to update active assignment counts
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to assign task: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== ASSIGNMENTS TAB ====================
+
+        async function loadAssignments() {
+            try {
+                showLoading();
+                assignments = await api.getTaskAssignments();
+                filteredAssignments = assignments;
+                renderAssignments();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load assignments: ' + error.message, 'error');
+            }
+        }
+
+        function renderAssignments() {
+            const container = document.getElementById('assignments-container');
+
+            if (filteredAssignments.length === 0) {
+                container.innerHTML = createEmptyState('No task assignments found');
+                return;
+            }
+
+            const rows = filteredAssignments.map(assignment => {
+                const employee = employees.find(e => e.id === assignment.assignedEmployeeId);
+                return {
+                    data: [
+                        utils.escapeHtml(assignment.templateName),
+                        employee ? utils.escapeHtml(employee.name) : 'Unknown',
+                        `<span class="badge ${utils.getStatusBadgeClass(assignment.status)}">${assignment.status}</span>`,
+                        utils.formatDateReadable(assignment.createdAt),
+                        assignment.dueDate ? utils.formatDateReadable(assignment.dueDate) : '-'
+                    ],
+                    id: assignment.id,
+                    assignment: assignment
+                };
+            });
+
+            container.innerHTML = `
+        <div class="card">
+          ${createTable(
+                ['Task', 'Assigned To', 'Status', 'Assigned Date', 'Due Date'],
+                rows,
+                (row) => `
+              <button class="btn btn-sm btn-secondary" onclick="openManageAssignmentModal(${row.id})">Manage</button>
+              <button class="btn btn-sm btn-primary" onclick="reassignQuick(${row.id})">Assign Again</button>
+            `
+            )}
+        </div>
+      `;
+        }
+
+        function applyAssignmentFilters() {
+            const searchQuery = document.getElementById('assignment-search-input').value.toLowerCase();
+            const statusFilter = document.getElementById('assignment-status-filter').value;
+            const employeeFilter = document.getElementById('assignment-employee-filter').value;
+
+            filteredAssignments = assignments.filter(assignment => {
+                const matchesSearch = assignment.templateName.toLowerCase().includes(searchQuery);
+                const matchesStatus = !statusFilter || assignment.status === statusFilter;
+                const matchesEmployee = !employeeFilter || assignment.assignedEmployeeId == employeeFilter;
+
+                return matchesSearch && matchesStatus && matchesEmployee;
+            });
+
+            renderAssignments();
+        }
+
+        document.getElementById('assignment-search-input').addEventListener('input', applyAssignmentFilters);
+        document.getElementById('assignment-status-filter').addEventListener('change', applyAssignmentFilters);
+        document.getElementById('assignment-employee-filter').addEventListener('change', applyAssignmentFilters);
+
+        function openManageAssignmentModal(assignmentId) {
+            const assignment = assignments.find(a => a.id === assignmentId);
+            if (!assignment) return;
+
+            const form = document.getElementById('manage-assignment-form');
+            form.elements.assignmentId.value = assignment.id;
+            form.elements.templateName.value = assignment.templateName;
+            form.elements.assignedEmployeeId.value = assignment.assignedEmployeeId;
+            form.elements.status.value = assignment.status;
+
+            openModal('manage-assignment-modal');
+        }
+
+        async function submitManageAssignment() {
+            const form = document.getElementById('manage-assignment-form');
+            const formData = new FormData(form);
+            const assignmentId = formData.get('assignmentId');
+
+            const data = {
+                assignedEmployeeId: parseInt(formData.get('assignedEmployeeId')),
+                status: formData.get('status')
+            };
+
+            try {
+                showLoading();
+                await api.updateTaskAssignment(assignmentId, data);
+                hideLoading();
+                showToast('Assignment updated successfully', 'success');
+                closeModal('manage-assignment-modal');
+                loadAssignments();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to update assignment: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteAssignmentFromModal() {
+            const form = document.getElementById('manage-assignment-form');
+            const assignmentId = form.elements.assignmentId.value;
+            const templateName = form.elements.templateName.value;
+
+            confirm(
+                `Are you sure you want to delete this assignment for "${templateName}"?`,
+                async () => {
+                    try {
+                        showLoading();
+                        await api.deleteTaskAssignment(assignmentId);
+                        hideLoading();
+                        showToast('Assignment deleted successfully', 'success');
+                        closeModal('manage-assignment-modal');
+                        loadAssignments();
+                    } catch (error) {
+                        hideLoading();
+                        showToast('Failed to delete assignment: ' + error.message, 'error');
+                    }
+                }
+            );
+        }
+
+        async function reassignQuick(assignmentId) {
+            const assignment = assignments.find(a => a.id === assignmentId);
+            if (!assignment) return;
+
+            // Open assign modal with the same template
+            openAssignModal(assignment.templateId);
+        }
+
+        // Initialize
+        loadEmployees();
+        loadTemplates();
+    </script>
+
+    <style>
+        .tab-button {
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--gray-600);
+            transition: all 0.2s;
+        }
+
+        .tab-button:hover {
+            color: var(--primary-color);
+            background: var(--gray-50);
+        }
+
+        .tab-button.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-content {
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</body>
+
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payroll - EMS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>Payroll Management</h1>
+                <p class="text-muted">Generate monthly payroll reports and invoices</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Select Month</h3>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Month</label>
+                            <select id="month-select" class="form-control">
+                            </select>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-primary" onclick="calculatePayroll()">
+                                📊 Calculate Payroll
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="payroll-results" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Payroll Summary for <span id="selected-month"></span></h3>
+                        <button class="btn btn-success" onclick="printPayroll()">
+                            🖨️ Print Invoice
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid grid-4 mb-2">
+                            <div class="stat-card">
+                                <h3 id="total-employees">0</h3>
+                                <p>Employees</p>
+                            </div>
+                            <div class="stat-card"
+                                style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                <h3 id="total-gross">$0</h3>
+                                <p>Total Gross Salary</p>
+                            </div>
+                            <div class="stat-card"
+                                style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                                <h3 id="total-deductions">$0</h3>
+                                <p>Total Deductions</p>
+                            </div>
+                            <div class="stat-card"
+                                style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                                <h3 id="total-net">$0</h3>
+                                <p>Total Net Salary</p>
+                            </div>
+                        </div>
+
+                        <div id="payroll-table"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print View (Hidden) -->
+    <div id="print-view" style="display: none;">
+        <style>
+            @media print {
+                body * {
+                    visibility: hidden;
+                }
+
+                #print-view,
+                #print-view * {
+                    visibility: visible;
+                }
+
+                #print-view {
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                }
+            }
+        </style>
+        <div style="padding: 2rem; font-family: Arial, sans-serif;">
+            <h1 style="text-align: center; color: #1e3a8a;">Employee Management System</h1>
+            <h2 style="text-align: center; color: #475569;">Payroll Invoice</h2>
+            <p style="text-align: center; margin-bottom: 2rem;">Month: <span id="print-month"></span></p>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 2rem;">
+                <thead>
+                    <tr style="background: #1e3a8a; color: white;">
+                        <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Employee</th>
+                        <th style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">Tasks Completed</th>
+                        <th style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">Gross Salary</th>
+                        <th style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">Deductions</th>
+                        <th style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">Net Salary</th>
+                    </tr>
+                </thead>
+                <tbody id="print-table-body">
+                </tbody>
+                <tfoot>
+                    <tr style="background: #f1f5f9; font-weight: bold;">
+                        <td style="padding: 0.75rem; border: 1px solid #ddd;">TOTAL</td>
+                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;" id="print-total-tasks">
+                        </td>
+                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;" id="print-total-gross">
+                        </td>
+                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;"
+                            id="print-total-deductions"></td>
+                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;" id="print-total-net">
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <p style="text-align: center; color: #64748b; font-size: 0.875rem;">
+                Generated on: <span id="print-date"></span>
+            </p>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Admin')) throw new Error('Unauthorized');
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'payroll');
+
+        let payrollData = [];
+        let selectedMonth = '';
+
+        // Generate month options for the last 12 months
+        function generateMonthOptions() {
+            const select = document.getElementById('month-select');
+            const options = [];
+            const now = new Date();
+
+            for (let i = 0; i < 12; i++) {
+                const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const value = `${year}-${month}`;
+                const label = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+                options.push(`<option value="${value}">${label}</option>`);
+            }
+
+            select.innerHTML = options.join('');
+        }
+
+        async function calculatePayroll() {
+            selectedMonth = document.getElementById('month-select').value;
+
+            try {
+                showLoading();
+                payrollData = await api.calculateAllSalaries(selectedMonth);
+
+                // Get detailed salary info for each employee to get task counts
+                const detailedData = await Promise.all(
+                    payrollData.map(emp => api.getSalary(emp.employeeId, { month: selectedMonth }))
+                );
+
+                // Merge task data
+                payrollData = payrollData.map((emp, index) => ({
+                    ...emp,
+                    tasksCompleted: detailedData[index].tasks.completed,
+                    deductionsTotal: detailedData[index].deductions.total
+                }));
+
+                renderPayroll();
+                hideLoading();
+
+                document.getElementById('payroll-results').style.display = 'block';
+                showToast('Payroll calculated successfully', 'success');
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to calculate payroll: ' + error.message, 'error');
+            }
+        }
+
+        function renderPayroll() {
+            const monthLabel = new Date(selectedMonth + '-01').toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long'
+            });
+            document.getElementById('selected-month').textContent = monthLabel;
+
+            // Calculate totals
+            const totalEmployees = payrollData.length;
+            const totalTasks = payrollData.reduce((sum, emp) => sum + (emp.tasksCompleted || 0), 0);
+            const totalGross = payrollData.reduce((sum, emp) => sum + emp.grossSalary, 0);
+            const totalDeductions = payrollData.reduce((sum, emp) => sum + (emp.deductionsTotal || 0), 0);
+            const totalNet = payrollData.reduce((sum, emp) => sum + emp.netSalary, 0);
+
+            document.getElementById('total-employees').textContent = totalEmployees;
+            document.getElementById('total-gross').textContent = utils.formatCurrency(totalGross);
+            document.getElementById('total-deductions').textContent = utils.formatCurrency(totalDeductions);
+            document.getElementById('total-net').textContent = utils.formatCurrency(totalNet);
+
+            // Render table
+            const rows = payrollData.map(emp => ({
+                data: [
+                    utils.escapeHtml(emp.employeeName),
+                    emp.tasksCompleted || 0,
+                    utils.formatCurrency(emp.grossSalary),
+                    utils.formatCurrency(emp.deductionsTotal || 0),
+                    `<strong style="color: var(--success);">${utils.formatCurrency(emp.netSalary)}</strong>`
+                ]
+            }));
+
+            document.getElementById('payroll-table').innerHTML = createTable(
+                ['Employee', 'Tasks Completed', 'Gross Salary', 'Deductions', 'Net Salary'],
+                rows
+            );
+        }
+
+        function printPayroll() {
+            const monthLabel = new Date(selectedMonth + '-01').toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long'
+            });
+
+            document.getElementById('print-month').textContent = monthLabel;
+            document.getElementById('print-date').textContent = new Date().toLocaleDateString('en-US');
+
+            // Populate print table
+            const tbody = document.getElementById('print-table-body');
+            tbody.innerHTML = payrollData.map(emp => `
+        <tr>
+          <td style="padding: 0.75rem; border: 1px solid #ddd;">${utils.escapeHtml(emp.employeeName)}</td>
+          <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">${emp.tasksCompleted || 0}</td>
+          <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">${utils.formatCurrency(emp.grossSalary)}</td>
+          <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">${utils.formatCurrency(emp.deductionsTotal || 0)}</td>
+          <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">${utils.formatCurrency(emp.netSalary)}</td>
+        </tr>
+      `).join('');
+
+            // Calculate totals
+            const totalTasks = payrollData.reduce((sum, emp) => sum + (emp.tasksCompleted || 0), 0);
+            const totalGross = payrollData.reduce((sum, emp) => sum + emp.grossSalary, 0);
+            const totalDeductions = payrollData.reduce((sum, emp) => sum + (emp.deductionsTotal || 0), 0);
+            const totalNet = payrollData.reduce((sum, emp) => sum + emp.netSalary, 0);
+
+            document.getElementById('print-total-tasks').textContent = totalTasks;
+            document.getElementById('print-total-gross').textContent = utils.formatCurrency(totalGross);
+            document.getElementById('print-total-deductions').textContent = utils.formatCurrency(totalDeductions);
+            document.getElementById('print-total-net').textContent = utils.formatCurrency(totalNet);
+
+            // Show print view and trigger print
+            document.getElementById('print-view').style.display = 'block';
+            window.print();
+            document.getElementById('print-view').style.display = 'none';
+        }
+
+        generateMonthOptions();
+    </script>
+</body>
+
+</html>

@@ -6,7 +6,7 @@ const EmployeeController = require('../controllers/EmployeeController');
 
 router.get(
   '/',
-  authorizeRoles('admin'),
+  authorizeRoles('admin', 'managerial'),
   asyncHandler(async (req, res) => {
     const employees = await EmployeeController.listEmployees();
     res.json(employees);

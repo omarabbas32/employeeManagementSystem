@@ -15,8 +15,16 @@ router.post(
 
 router.get(
   '/:employeeId',
-  authorizeRoles('admin', 'managerial'),
   asyncHandler(async (req, res) => {
+    const requestedId = Number(req.params.employeeId);
+    const { user } = req;
+
+    // Employees can only view their own notes
+    // Admin and Managerial can view any employee's notes
+    if (!user.isAdmin && user.role !== 'managerial' && requestedId !== Number(user.id)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
     const notes = await NoteController.listNotes(req.params.employeeId);
     res.json(notes);
   })
@@ -32,4 +40,3 @@ router.delete(
 );
 
 module.exports = router;
-
