@@ -1,0 +1,17 @@
+{
+  "scripts": {
+    "start": "node source/app.js",
+    "dev": "nodemon source/app.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "dayjs": "^1.11.11",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
