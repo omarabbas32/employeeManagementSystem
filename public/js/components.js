@@ -4,51 +4,51 @@
 let toastContainer = null;
 
 function initToastContainer() {
-    if (!toastContainer) {
-        toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container';
-        document.body.appendChild(toastContainer);
-    }
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.className = 'toast-container';
+    document.body.appendChild(toastContainer);
+  }
 }
 
 function showToast(message, type = 'info', duration = 3000) {
-    initToastContainer();
+  initToastContainer();
 
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
     <div style="flex: 1;">${utils.escapeHtml(message)}</div>
     <button onclick="this.parentElement.remove()" style="background: none; border: none; cursor: pointer; font-size: 1.2rem; color: #666;">&times;</button>
   `;
 
-    toastContainer.appendChild(toast);
+  toastContainer.appendChild(toast);
 
-    setTimeout(() => {
-        toast.remove();
-    }, duration);
+  setTimeout(() => {
+    toast.remove();
+  }, duration);
 }
 
 // Loading overlay
 function showLoading() {
-    const overlay = document.createElement('div');
-    overlay.className = 'loading-overlay';
-    overlay.id = 'loading-overlay';
-    overlay.innerHTML = '<div class="spinner"></div>';
-    document.body.appendChild(overlay);
+  const overlay = document.createElement('div');
+  overlay.className = 'loading-overlay';
+  overlay.id = 'loading-overlay';
+  overlay.innerHTML = '<div class="spinner"></div>';
+  document.body.appendChild(overlay);
 }
 
 function hideLoading() {
-    const overlay = document.getElementById('loading-overlay');
-    if (overlay) {
-        overlay.remove();
-    }
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) {
+    overlay.remove();
+  }
 }
 
 // Confirmation dialog
 function confirm(message, onConfirm, onCancel = null) {
-    const modal = document.createElement('div');
-    modal.className = 'modal active';
-    modal.innerHTML = `
+  const modal = document.createElement('div');
+  modal.className = 'modal active';
+  modal.innerHTML = `
     <div class="modal-content" style="max-width: 400px;">
       <div class="modal-header">
         <h3 class="modal-title">Confirm Action</h3>
@@ -63,37 +63,37 @@ function confirm(message, onConfirm, onCancel = null) {
     </div>
   `;
 
-    document.body.appendChild(modal);
+  document.body.appendChild(modal);
 
-    const confirmBtn = modal.querySelector('#confirm-btn');
-    const cancelBtn = modal.querySelector('#cancel-btn');
+  const confirmBtn = modal.querySelector('#confirm-btn');
+  const cancelBtn = modal.querySelector('#cancel-btn');
 
-    confirmBtn.onclick = () => {
-        modal.remove();
-        if (onConfirm) onConfirm();
-    };
+  confirmBtn.onclick = () => {
+    modal.remove();
+    if (onConfirm) onConfirm();
+  };
 
-    cancelBtn.onclick = () => {
-        modal.remove();
-        if (onCancel) onCancel();
-    };
+  cancelBtn.onclick = () => {
+    modal.remove();
+    if (onCancel) onCancel();
+  };
 
-    modal.onclick = (e) => {
-        if (e.target === modal) {
-            modal.remove();
-            if (onCancel) onCancel();
-        }
-    };
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      modal.remove();
+      if (onCancel) onCancel();
+    }
+  };
 }
 
 // Create sidebar navigation
 function createSidebar(role, activePage = '') {
-    const user = auth.getCurrentUser();
+  const user = auth.getCurrentUser();
 
-    let navItems = '';
+  let navItems = '';
 
-    if (role === 'Admin') {
-        navItems = `
+  if (role === 'Admin') {
+    navItems = `
       <a href="/public/admin/dashboard.html" class="nav-item ${activePage === 'dashboard' ? 'active' : ''}">
         <i>📊</i> Dashboard
       </a>
@@ -125,20 +125,23 @@ function createSidebar(role, activePage = '') {
         <i>⚙️</i> Settings
       </a>
     `;
-    } else if (role === 'Managerial') {
-        navItems = `
+  } else if (role === 'Managerial') {
+    navItems = `
       <a href="/public/manager/dashboard.html" class="nav-item ${activePage === 'dashboard' ? 'active' : ''}">
         <i>📊</i> Dashboard
       </a>
       <a href="/public/manager/tasks.html" class="nav-item ${activePage === 'tasks' ? 'active' : ''}">
         <i>📋</i> Tasks
       </a>
+      <a href="/public/manager/responsibilities.html" class="nav-item ${activePage === 'responsibilities' ? 'active' : ''}">
+        <i>⚡</i> Responsibilities
+      </a>
       <a href="/public/manager/attendance.html" class="nav-item ${activePage === 'attendance' ? 'active' : ''}">
         <i>⏰</i> Attendance
       </a>
     `;
-    } else {
-        navItems = `
+  } else {
+    navItems = `
       <a href="/public/employee/dashboard.html" class="nav-item ${activePage === 'dashboard' ? 'active' : ''}">
         <i>📊</i> Dashboard
       </a>
@@ -149,9 +152,9 @@ function createSidebar(role, activePage = '') {
         <i>⏰</i> Attendance
       </a>
     `;
-    }
+  }
 
-    return `
+  return `
     <div class="sidebar">
       <div class="sidebar-header">
         <h2>EMS</h2>
@@ -172,7 +175,7 @@ function createSidebar(role, activePage = '') {
 
 // Create page header
 function createPageHeader(title, subtitle = '') {
-    return `
+  return `
     <div class="card">
       <h1>${title}</h1>
       ${subtitle ? `<p class="text-muted">${subtitle}</p>` : ''}
@@ -182,7 +185,7 @@ function createPageHeader(title, subtitle = '') {
 
 // Create modal
 function createModal(id, title, content, footer = '') {
-    return `
+  return `
     <div id="${id}" class="modal">
       <div class="modal-content">
         <div class="modal-header">
@@ -199,43 +202,43 @@ function createModal(id, title, content, footer = '') {
 }
 
 function openModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.add('active');
-    }
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('active');
+  }
 }
 
 function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.remove('active');
-    }
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('active');
+  }
 }
 
 // Create table
 function createTable(headers, rows, actions = null) {
-    let headerHTML = '<tr>';
-    headers.forEach(header => {
-        headerHTML += `<th>${header}</th>`;
+  let headerHTML = '<tr>';
+  headers.forEach(header => {
+    headerHTML += `<th>${header}</th>`;
+  });
+  if (actions) {
+    headerHTML += '<th>Actions</th>';
+  }
+  headerHTML += '</tr>';
+
+  let rowsHTML = '';
+  rows.forEach(row => {
+    rowsHTML += '<tr>';
+    row.data.forEach(cell => {
+      rowsHTML += `<td>${cell}</td>`;
     });
     if (actions) {
-        headerHTML += '<th>Actions</th>';
+      rowsHTML += `<td>${actions(row)}</td>`;
     }
-    headerHTML += '</tr>';
+    rowsHTML += '</tr>';
+  });
 
-    let rowsHTML = '';
-    rows.forEach(row => {
-        rowsHTML += '<tr>';
-        row.data.forEach(cell => {
-            rowsHTML += `<td>${cell}</td>`;
-        });
-        if (actions) {
-            rowsHTML += `<td>${actions(row)}</td>`;
-        }
-        rowsHTML += '</tr>';
-    });
-
-    return `
+  return `
     <div class="table-container">
       <table>
         <thead>${headerHTML}</thead>
@@ -247,7 +250,7 @@ function createTable(headers, rows, actions = null) {
 
 // Create empty state
 function createEmptyState(message, icon = '📭') {
-    return `
+  return `
     <div class="card text-center" style="padding: 3rem;">
       <div style="font-size: 4rem; margin-bottom: 1rem;">${icon}</div>
       <h3 class="text-muted">${message}</h3>

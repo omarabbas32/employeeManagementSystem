@@ -307,6 +307,11 @@ class APIService {
         return this.get('/types');
     }
 
+    // Alias for backward compatibility
+    async getEmployeeTypes() {
+        return this.getTypes();
+    }
+
     async createType(typeData) {
         return this.post('/types', typeData);
     }
@@ -333,6 +338,14 @@ class APIService {
 
     async deleteDeduction(id) {
         return this.delete(`/deductions/${id}`);
+    }
+
+    async createBulkDeduction(deductionData) {
+        return this.post('/deductions/bulk', deductionData);
+    }
+
+    async getEmployeeDeductions(employeeId) {
+        return this.get(`/deductions/employee/${employeeId}`);
     }
 }
 

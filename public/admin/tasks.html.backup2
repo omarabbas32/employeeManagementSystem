@@ -37,56 +37,6 @@
                 </div>
             </div>
 
-            <div id="templates-container">
-                <p class="text-muted">Loading templates...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Template Modal -->
-    <div id="add-template-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Create New Task Template</h3>
-                <button class="modal-close" onclick="closeModal('add-template-modal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="add-template-form">
-                    <div class="form-group">
-                        <label class="form-label">Template Name *</label>
-                        <input type="text" name="name" class="form-control"
-                            placeholder="e.g., Website Development, Data Entry" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Description</label>
-                        <textarea name="description" class="form-control" rows="3"
-                            placeholder="Describe what this task involves..."></textarea>
-                    </div>
-
-                    <div class="grid grid-2 gap-1">
-                        <div class="form-group">
-                            <label class="form-label">Price *</label>
-                            <input type="number" name="price" class="form-control" min="0" step="0.01"
-                                placeholder="0.00" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Factor</label>
-                            <input type="number" name="factor" class="form-control" value="1" min="0" step="0.1">
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('add-template-modal')">Cancel</button>
-                <button class="btn btn-primary" onclick="submitAddTemplate()">Create Template</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Template Modal -->
-    <div id="edit-template-modal" class="modal">
-        <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">Edit Task Template</h3>
                 <button class="modal-close" onclick="closeModal('edit-template-modal')">&times;</button>

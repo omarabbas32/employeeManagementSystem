@@ -63,6 +63,7 @@ const createEmployee = async (payload) => {
     baseSalary = 0,
     monthlyFactor = 1,
     overtimeFactor = 1,
+    requiredMonthlyHours = 160,
     notes = '',
   } = payload;
   if (!name || !employeeType) {
@@ -78,9 +79,9 @@ const createEmployee = async (payload) => {
   const passwordHash = await hashPassword(password);
 
   const result = await runAsync(
-    `INSERT INTO employees (name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, notes]
+    `INSERT INTO employees (name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, requiredMonthlyHours, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, requiredMonthlyHours, notes]
   );
 
   return getEmployeeDetails(result.lastID);
@@ -102,6 +103,7 @@ const updateEmployee = async (id, payload) => {
     baseSalary = employee.baseSalary,
     monthlyFactor = employee.monthlyFactor,
     overtimeFactor = employee.overtimeFactor,
+    requiredMonthlyHours = employee.requiredMonthlyHours,
     notes = employee.notes,
     password,
   } = payload;
@@ -113,9 +115,9 @@ const updateEmployee = async (id, payload) => {
 
   await runAsync(
     `UPDATE employees
-     SET name = ?, username = ?, email = ?, passwordHash = ?, employeeType = ?, baseSalary = ?, monthlyFactor = ?, overtimeFactor = ?, notes = ?
+     SET name = ?, username = ?, email = ?, passwordHash = ?, employeeType = ?, baseSalary = ?, monthlyFactor = ?, overtimeFactor = ?, requiredMonthlyHours = ?, notes = ?
      WHERE id = ?`,
-    [name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, notes, id]
+    [name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, requiredMonthlyHours, notes, id]
   );
 
   return getEmployeeDetails(id);

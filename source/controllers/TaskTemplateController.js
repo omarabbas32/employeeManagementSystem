@@ -147,10 +147,10 @@ const listAssignments = async (filters = {}) => {
     const assignments = await allAsync(
         `SELECT 
       ta.*,
-      tt.name as templateName,
-      tt.description as templateDescription,
-      tt.price as templatePrice,
-      tt.factor as templateFactor,
+      tt.name,
+      tt.description,
+      tt.price,
+      tt.factor,
       tt.type as templateType
      FROM task_assignments ta
      JOIN task_templates tt ON ta.templateId = tt.id
@@ -190,10 +190,10 @@ const createAssignment = async (payload) => {
     const assignment = await getAsync(
         `SELECT 
       ta.*,
-      tt.name as templateName,
-      tt.description as templateDescription,
-      tt.price as templatePrice,
-      tt.factor as templateFactor,
+      tt.name,
+      tt.description,
+      tt.price,
+      tt.factor,
       tt.type as templateType
      FROM task_assignments ta
      JOIN task_templates tt ON ta.templateId = tt.id
@@ -220,10 +220,10 @@ const reassignTask = async (assignmentId, newEmployeeId) => {
     const updated = await getAsync(
         `SELECT 
       ta.*,
-      tt.name as templateName,
-      tt.description as templateDescription,
-      tt.price as templatePrice,
-      tt.factor as templateFactor,
+      tt.name,
+      tt.description,
+      tt.price,
+      tt.factor,
       tt.type as templateType
      FROM task_assignments ta
      JOIN task_templates tt ON ta.templateId = tt.id
@@ -242,7 +242,7 @@ const updateAssignmentStatus = async (assignmentId, status) => {
         throw error;
     }
 
-    const completedAt = status === 'Done' ? new Date().toISOString() : null;
+    const completedAt = status === 'Completed' ? new Date().toISOString() : null;
 
     await runAsync(
         `UPDATE task_assignments SET status = ?, completedAt = ? WHERE id = ?`,
@@ -252,10 +252,10 @@ const updateAssignmentStatus = async (assignmentId, status) => {
     const updated = await getAsync(
         `SELECT 
       ta.*,
-      tt.name as templateName,
-      tt.description as templateDescription,
-      tt.price as templatePrice,
-      tt.factor as templateFactor,
+      tt.name,
+      tt.description,
+      tt.price,
+      tt.factor,
       tt.type as templateType
      FROM task_assignments ta
      JOIN task_templates tt ON ta.templateId = tt.id
@@ -282,7 +282,7 @@ const updateAssignment = async (assignmentId, payload) => {
     };
 
     // If status changed to Done, set completedAt
-    const completedAt = updates.status === 'Done' && assignment.status !== 'Done'
+    const completedAt = updates.status === 'Completed' && assignment.status !== 'Completed'
         ? new Date().toISOString()
         : assignment.completedAt;
 
@@ -300,10 +300,10 @@ const updateAssignment = async (assignmentId, payload) => {
     const updated = await getAsync(
         `SELECT 
       ta.*,
-      tt.name as templateName,
-      tt.description as templateDescription,
-      tt.price as templatePrice,
-      tt.factor as templateFactor,
+      tt.name,
+      tt.description,
+      tt.price,
+      tt.factor,
       tt.type as templateType
      FROM task_assignments ta
      JOIN task_templates tt ON ta.templateId = tt.id

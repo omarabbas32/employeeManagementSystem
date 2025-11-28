@@ -40,4 +40,23 @@ router.delete(
   })
 );
 
+// Create a company-wide deduction (applies to all employees)
+router.post(
+  '/bulk',
+  authorizeRoles('admin'),
+  asyncHandler(async (req, res) => {
+    const rule = await DeductionController.createBulkDeduction(req.body);
+    res.status(201).json(rule);
+  })
+);
+
+// Get all deductions for a specific employee
+router.get(
+  '/employee/:employeeId',
+  asyncHandler(async (req, res) => {
+    const deductions = await DeductionController.getEmployeeDeductions(req.params.employeeId);
+    res.json(deductions);
+  })
+);
+
 module.exports = router;

@@ -33,20 +33,19 @@ const createDeduction = async (payload) => {
   const applyToEmployeeId = payload.employeeId !== undefined ? payload.employeeId : payload.applyToEmployeeId;
   const isActive = payload.isActive !== undefined ? payload.isActive : 1;
 
-  // CRITICAL: Deductions must be employee-specific (no global deductions)
+  // Validate required fields
   if (!name || amount == null) {
     throw new Error('name and value are required');
   }
 
-  if (!applyToEmployeeId) {
-    throw new Error('employeeId is required - deductions must be assigned to a specific employee');
+  // If employeeId is provided, verify employee exists
+  if (applyToEmployeeId) {
+    const employee = await getAsync(`SELECT id FROM employees WHERE id = ?`, [applyToEmployeeId]);
+    if (!employee) {
+      throw new Error('Employee not found');
+    }
   }
-
-  // Verify employee exists
-  const employee = await getAsync(`SELECT id FROM employees WHERE id = ?`, [applyToEmployeeId]);
-  if (!employee) {
-    throw new Error('Employee not found');
-  }
+  // If applyToEmployeeId is null/undefined, this will be a company-wide deduction
 
   // ALWAYS use 'fixed' type (no percentage)
   const type = 'fixed';
@@ -54,7 +53,7 @@ const createDeduction = async (payload) => {
   const result = await runAsync(
     `INSERT INTO deduction_rules (name, type, amount, applyToEmployeeId, isActive)
      VALUES (?, ?, ?, ?, ?)`,
-    [name, type, amount, applyToEmployeeId, isActive ? 1 : 0]
+    [name, type, amount, applyToEmployeeId || null, isActive ? 1 : 0]
   );
 
   const deduction = await getAsync(`SELECT * FROM deduction_rules WHERE id = ?`, [result.lastID]);
@@ -81,16 +80,19 @@ const updateDeduction = async (id, payload) => {
     isActive: payload.isActive ?? rule.isActive,
   };
 
-  // Ensure employee-specific
-  if (!updated.applyToEmployeeId) {
-    throw new Error('employeeId is required - deductions must be assigned to a specific employee');
+  // If employeeId is provided, verify employee exists
+  if (updated.applyToEmployeeId) {
+    const employee = await getAsync(`SELECT id FROM employees WHERE id = ?`, [updated.applyToEmployeeId]);
+    if (!employee) {
+      throw new Error('Employee not found');
+    }
   }
 
   await runAsync(
     `UPDATE deduction_rules
      SET name = ?, type = ?, amount = ?, applyToEmployeeId = ?, isActive = ?
      WHERE id = ?`,
-    [updated.name, updated.type, updated.amount, updated.applyToEmployeeId, updated.isActive ? 1 : 0, id]
+    [updated.name, updated.type, updated.amount, updated.applyToEmployeeId || null, updated.isActive ? 1 : 0, id]
   );
 
   const updatedRule = await getAsync(`SELECT * FROM deduction_rules WHERE id = ?`, [id]);
@@ -106,9 +108,54 @@ const deleteDeduction = async (id) => {
   return { success: true };
 };
 
+// Create a company-wide deduction (applies to all employees)
+const createBulkDeduction = async (payload) => {
+  const name = payload.name;
+  const amount = payload.value !== undefined ? payload.value : payload.amount;
+  const isActive = payload.isActive !== undefined ? payload.isActive : 1;
+
+  if (!name || amount == null) {
+    throw new Error('name and value are required');
+  }
+
+  const type = 'fixed';
+
+  const result = await runAsync(
+    `INSERT INTO deduction_rules (name, type, amount, applyToEmployeeId, isActive)
+     VALUES (?, ?, ?, NULL, ?)`,
+    [name, type, amount, isActive ? 1 : 0]
+  );
+
+  const deduction = await getAsync(`SELECT * FROM deduction_rules WHERE id = ?`, [result.lastID]);
+  return {
+    ...deduction,
+    value: deduction.amount,
+    employeeId: deduction.applyToEmployeeId
+  };
+};
+
+// Get all deductions for a specific employee (both company-wide and individual)
+const getEmployeeDeductions = async (employeeId) => {
+  const deductions = await allAsync(
+    `SELECT * FROM deduction_rules
+     WHERE isActive = 1 AND (applyToEmployeeId IS NULL OR applyToEmployeeId = ?)
+     ORDER BY id DESC`,
+    [employeeId]
+  );
+
+  return deductions.map(d => ({
+    ...d,
+    value: d.amount,
+    employeeId: d.applyToEmployeeId,
+    isCompanyWide: d.applyToEmployeeId === null
+  }));
+};
+
 module.exports = {
   listDeductions,
   createDeduction,
   updateDeduction,
   deleteDeduction,
+  createBulkDeduction,
+  getEmployeeDeductions,
 };

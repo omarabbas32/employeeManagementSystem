@@ -76,65 +76,6 @@
         </div>
     </div>
 
-    <!-- Print View (Hidden) -->
-    <div id="print-view" style="display: none;">
-        <style>
-            @media print {
-                body * {
-                    visibility: hidden;
-                }
-
-                #print-view,
-                #print-view * {
-                    visibility: visible;
-                }
-
-                #print-view {
-                    position: absolute;
-                    left: 0;
-                    top: 0;
-                    width: 100%;
-                }
-            }
-        </style>
-        <div style="padding: 2rem; font-family: Arial, sans-serif;">
-            <h1 style="text-align: center; color: #1e3a8a;">Employee Management System</h1>
-            <h2 style="text-align: center; color: #475569;">Payroll Invoice</h2>
-            <p style="text-align: center; margin-bottom: 2rem;">Month: <span id="print-month"></span></p>
-
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 2rem;">
-                <thead>
-                    <tr style="background: #1e3a8a; color: white;">
-                        <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Employee</th>
-                        <th style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">Tasks Completed</th>
-                        <th style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">Gross Salary</th>
-                        <th style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">Deductions</th>
-                        <th style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">Net Salary</th>
-                    </tr>
-                </thead>
-                <tbody id="print-table-body">
-                </tbody>
-                <tfoot>
-                    <tr style="background: #f1f5f9; font-weight: bold;">
-                        <td style="padding: 0.75rem; border: 1px solid #ddd;">TOTAL</td>
-                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;" id="print-total-tasks">
-                        </td>
-                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;" id="print-total-gross">
-                        </td>
-                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;"
-                            id="print-total-deductions"></td>
-                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;" id="print-total-net">
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-
-            <p style="text-align: center; color: #64748b; font-size: 0.875rem;">
-                Generated on: <span id="print-date"></span>
-            </p>
-        </div>
-    </div>
-
     <script src="../js/api.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/utils.js"></script>
@@ -171,16 +112,17 @@
                 showLoading();
                 payrollData = await api.calculateAllSalaries(selectedMonth);
 
-                // Get detailed salary info for each employee to get task counts
+                // Get detailed salary info for each employee to get task counts and attendance data
                 const detailedData = await Promise.all(
                     payrollData.map(emp => api.getSalary(emp.employeeId, { month: selectedMonth }))
                 );
 
-                // Merge task data
+                // Merge task and attendance data
                 payrollData = payrollData.map((emp, index) => ({
                     ...emp,
                     tasksCompleted: detailedData[index].tasks.completed,
-                    deductionsTotal: detailedData[index].deductions.total
+                    deductionsTotal: detailedData[index].deductions.total,
+                    attendance: detailedData[index].attendance  // Include full attendance data
                 }));
 
                 renderPayroll();
@@ -213,10 +155,14 @@
             document.getElementById('total-deductions').textContent = utils.formatCurrency(totalDeductions);
             document.getElementById('total-net').textContent = utils.formatCurrency(totalNet);
 
-            // Render table
+            // Render table with hours and overtime columns
             const rows = payrollData.map(emp => ({
                 data: [
                     utils.escapeHtml(emp.employeeName),
+                    `${emp.attendance?.totalHours?.toFixed(1) || '0.0'}h`,
+                    emp.attendance?.overtimeHours > 0 ?
+                        `<span style="color: var(--warning); font-weight: 600;">${emp.attendance.overtimeHours.toFixed(1)}h</span>` :
+                        '0h',
                     emp.tasksCompleted || 0,
                     utils.formatCurrency(emp.grossSalary),
                     utils.formatCurrency(emp.deductionsTotal || 0),
@@ -225,47 +171,13 @@
             }));
 
             document.getElementById('payroll-table').innerHTML = createTable(
-                ['Employee', 'Tasks Completed', 'Gross Salary', 'Deductions', 'Net Salary'],
+                ['Employee', 'Hours', 'Overtime', 'Tasks', 'Gross', 'Deductions', 'Net Salary'],
                 rows
             );
         }
 
         function printPayroll() {
-            const monthLabel = new Date(selectedMonth + '-01').toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long'
-            });
-
-            document.getElementById('print-month').textContent = monthLabel;
-            document.getElementById('print-date').textContent = new Date().toLocaleDateString('en-US');
-
-            // Populate print table
-            const tbody = document.getElementById('print-table-body');
-            tbody.innerHTML = payrollData.map(emp => `
-        <tr>
-          <td style="padding: 0.75rem; border: 1px solid #ddd;">${utils.escapeHtml(emp.employeeName)}</td>
-          <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">${emp.tasksCompleted || 0}</td>
-          <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">${utils.formatCurrency(emp.grossSalary)}</td>
-          <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">${utils.formatCurrency(emp.deductionsTotal || 0)}</td>
-          <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">${utils.formatCurrency(emp.netSalary)}</td>
-        </tr>
-      `).join('');
-
-            // Calculate totals
-            const totalTasks = payrollData.reduce((sum, emp) => sum + (emp.tasksCompleted || 0), 0);
-            const totalGross = payrollData.reduce((sum, emp) => sum + emp.grossSalary, 0);
-            const totalDeductions = payrollData.reduce((sum, emp) => sum + (emp.deductionsTotal || 0), 0);
-            const totalNet = payrollData.reduce((sum, emp) => sum + emp.netSalary, 0);
-
-            document.getElementById('print-total-tasks').textContent = totalTasks;
-            document.getElementById('print-total-gross').textContent = utils.formatCurrency(totalGross);
-            document.getElementById('print-total-deductions').textContent = utils.formatCurrency(totalDeductions);
-            document.getElementById('print-total-net').textContent = utils.formatCurrency(totalNet);
-
-            // Show print view and trigger print
-            document.getElementById('print-view').style.display = 'block';
             window.print();
-            document.getElementById('print-view').style.display = 'none';
         }
 
         generateMonthOptions();

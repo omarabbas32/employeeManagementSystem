@@ -80,6 +80,9 @@ const initDatabase = async () => {
   await ensureColumn('employees', 'username', 'TEXT');
   await ensureColumn('employees', 'email', 'TEXT');
   await ensureColumn('employees', 'passwordHash', 'TEXT');
+  await ensureColumn('employees', 'normalHourRate', 'REAL DEFAULT 10');
+  await ensureColumn('employees', 'overtimeHourRate', 'REAL DEFAULT 15');
+  await ensureColumn('employees', 'requiredMonthlyHours', 'REAL DEFAULT 160');
   await runAsync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_username ON employees(username)`);
   await runAsync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_email ON employees(email)`);
 

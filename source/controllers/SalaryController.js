@@ -15,9 +15,11 @@ const fetchAttendanceTotals = async (employeeId, monthPattern) => {
 
 const fetchCompletedTasks = (employeeId) =>
   allAsync(
-    `SELECT * FROM tasks
-     WHERE assignedEmployeeId = ?
-       AND status = 'Done'`,
+    `SELECT ta.*, tt.name, tt.description, tt.price, tt.factor
+     FROM task_assignments ta
+     JOIN task_templates tt ON ta.templateId = tt.id
+     WHERE ta.assignedEmployeeId = ?
+       AND ta.status = 'Completed'`,
     [employeeId]
   );
 
@@ -85,21 +87,32 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
     fetchDeductions(employeeId),
   ]);
 
+  // Filter tasks by completion month (for completed tasks, use completedAt date)
   const tasksForMonth = tasks.filter((task) => {
     if (!monthValue) {
       return true;
     }
+    // For completed tasks, check if they were completed in this month
+    if (task.completedAt && task.completedAt.startsWith(monthValue)) {
+      return true;
+    }
+    // Fallback: check start/due dates if no completion date
     const startsInMonth = task.startDate && task.startDate.startsWith(monthValue);
     const dueInMonth = task.dueDate && task.dueDate.startsWith(monthValue);
-    return startsInMonth || dueInMonth || (!task.startDate && !task.dueDate);
+    return startsInMonth || dueInMonth;
   });
 
-  const normalHourRate = settings?.normalHourRate || 0;
-  const overtimeHourRate = settings?.overtimeHourRate || 0;
-  const overtimeThreshold = settings?.overtimeThresholdHours || 160;
+  // Use employee-specific required hours, fallback to global threshold
+  const requiredMonthlyHours = employee.requiredMonthlyHours || settings?.overtimeThresholdHours || 160;
 
-  const normalHours = Math.min(totalHours, overtimeThreshold);
-  const overtimeHours = Math.max(totalHours - overtimeThreshold, 0);
+  // Calculate normal and overtime hours based on employee's required hours
+  const normalHours = Math.min(totalHours, requiredMonthlyHours);
+  const overtimeHours = Math.max(totalHours - requiredMonthlyHours, 0);
+
+  // Use employee-specific hourly rates, fallback to global settings if not set
+  const normalHourRate = employee.normalHourRate || settings?.normalHourRate || 10;
+  const overtimeHourRate = employee.overtimeHourRate || settings?.overtimeHourRate || 15;
+
   const normalPay = normalHours * normalHourRate;
   const overtimePay = overtimeHours * overtimeHourRate;
 
@@ -138,6 +151,7 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
     // Attendance data
     attendance: {
       totalHours: totalHours || 0,
+      requiredMonthlyHours: requiredMonthlyHours || 160,
       normalHours: normalHours || 0,
       overtimeHours: overtimeHours || 0,
       normalPay: normalPay || 0,
