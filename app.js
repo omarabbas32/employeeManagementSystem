@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const { initDatabase } = require('./source/Data/database');
 
 const authRoutes = require('./source/Routes/auth');
@@ -32,10 +33,18 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-// Serve static files from public directory
+// Serve static files from public directory (before authentication)
 app.use('/public', express.static('public'));
 
+// Serve login page at root (before authentication)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Auth routes don't need authentication
 app.use('/auth', authRoutes);
+
+// Apply authentication to all other routes
 app.use(authenticateUser);
 
 app.use('/employees', employeeRoutes);
@@ -46,7 +55,9 @@ app.use('/salary', salaryRoutes);
 app.use('/notes', noteRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/types', typeRoutes);
+
 app.use('/deductions', deductionRoutes);
+
 
 app.use((err, req, res, next) => {
   console.error(err);
@@ -59,8 +70,11 @@ const PORT = process.env.PORT || 3000;
 
 initDatabase()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Employee Management System API running on port ${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n🚀 Employee Management System API is running!`);
+      console.log(`📍 Local:   http://localhost:${PORT}`);
+      console.log(`📍 Network: http://YOUR_LOCAL_IP:${PORT}`);
+      console.log(`\nTo find your local IP, run: ipconfig (Windows) or ifconfig (Mac/Linux)\n`);
     });
   })
   .catch((err) => {

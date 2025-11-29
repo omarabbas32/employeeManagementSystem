@@ -5,7 +5,7 @@ const formatDate = (inputDate) => (inputDate ? dayjs(inputDate).format('YYYY-MM-
 
 const checkAttendanceCode = async (code) => {
   const settings = await getAsync(`SELECT currentAttendanceCode FROM admin_settings WHERE id = 1`);
-
+//here 
   if (!settings || !settings.currentAttendanceCode) {
     const error = new Error('Attendance code not configured. Please contact admin.');
     error.status = 400;

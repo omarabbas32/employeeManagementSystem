@@ -112,17 +112,27 @@
                 showLoading();
                 payrollData = await api.calculateAllSalaries(selectedMonth);
 
-                // Get detailed salary info for each employee to get task counts and attendance data
+                // Get detailed salary info for each employee
                 const detailedData = await Promise.all(
-                    payrollData.map(emp => api.getSalary(emp.employeeId, { month: selectedMonth }))
+                    payrollData.map(async emp => {
+                        const salaryData = await api.getSalary(emp.employeeId, { month: selectedMonth });
+                        // Fetch task assignments separately
+                        const tasks = await api.getTaskAssignments({ employeeId: emp.employeeId });
+                        const completedTasks = tasks.filter(t => t.status === 'Completed' || t.status === 'Done').length;
+                        
+                        return {
+                            salaryData,
+                            tasksCompleted: completedTasks
+                        };
+                    })
                 );
 
                 // Merge task and attendance data
                 payrollData = payrollData.map((emp, index) => ({
                     ...emp,
-                    tasksCompleted: detailedData[index].tasks.completed,
-                    deductionsTotal: detailedData[index].deductions.total,
-                    attendance: detailedData[index].attendance  // Include full attendance data
+                    tasksCompleted: detailedData[index].tasksCompleted || 0,
+                    deductionsTotal: detailedData[index].salaryData.deductions?.total || 0,
+                    attendance: detailedData[index].salaryData.attendance || { totalHours: 0, overtimeHours: 0 }
                 }));
 
                 renderPayroll();
@@ -145,7 +155,6 @@
 
             // Calculate totals
             const totalEmployees = payrollData.length;
-            const totalTasks = payrollData.reduce((sum, emp) => sum + (emp.tasksCompleted || 0), 0);
             const totalGross = payrollData.reduce((sum, emp) => sum + emp.grossSalary, 0);
             const totalDeductions = payrollData.reduce((sum, emp) => sum + (emp.deductionsTotal || 0), 0);
             const totalNet = payrollData.reduce((sum, emp) => sum + emp.netSalary, 0);

@@ -79,13 +79,15 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
 
   const monthValue = month || dayjs().format('YYYY-MM');
   const monthPattern = `${monthValue}%`;
-  const [settings, totalHours, deductions] = await Promise.all([
+  const [settings, totalHours, deductions, completedTasks, responsibilities] = await Promise.all([
     fetchSettings(),
     fetchAttendanceTotals(employeeId, monthPattern),
     fetchDeductions(employeeId),
+    fetchCompletedTasks(employeeId),
+    fetchResponsibilities(employeeId),
   ]);
 
-  // SIMPLIFIED CALCULATION: Net Salary = Base Salary + (Total Hours × Hourly Rate) - Deductions
+  // COMPLETE CALCULATION: Net Salary = Base + Hours Pay + Task Earnings + Responsibility Earnings - Deductions
 
   // Use employee-specific hourly rate, fallback to global settings if not set
   const hourlyRate = employee.hourlyRate || settings?.normalHourRate || 15;
@@ -93,8 +95,18 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
   // Calculate working hours payment (all hours paid at same rate)
   const workingHoursPay = totalHours * hourlyRate;
 
+  // Calculate task earnings from completed tasks
+  const taskEarnings = sum(completedTasks.map(task => task.price || 0));
+  const completedTaskCount = completedTasks.length;
+
+  // Calculate responsibility earnings (price × monthly factor)
+  const responsibilityEarnings = sum(responsibilities.map(resp =>
+    (resp.monthlyPrice || 0) * (resp.factor || employee.monthlyFactor || 1)
+  ));
+  const responsibilityCount = responsibilities.length;
+
   const baseSalary = employee.baseSalary || 0;
-  const grossSalary = baseSalary + workingHoursPay;
+  const grossSalary = baseSalary + workingHoursPay + taskEarnings + responsibilityEarnings;
 
   const deductionResult = applyDeductions(deductions, grossSalary);
   const netSalary = grossSalary - deductionResult.total;
@@ -111,6 +123,16 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
       totalHours: totalHours || 0,
       hourlyRate: hourlyRate,
       workingHoursPay: workingHoursPay || 0
+    },
+    // Task data
+    tasks: {
+      completed: completedTaskCount,
+      totalEarnings: taskEarnings || 0
+    },
+    // Responsibility data
+    responsibilities: {
+      count: responsibilityCount,
+      totalEarnings: responsibilityEarnings || 0
     },
     // Deductions
     deductions: {

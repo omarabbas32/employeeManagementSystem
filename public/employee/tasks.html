@@ -163,10 +163,14 @@
 
         function renderTaskGroup(title, tasks, badgeClass) {
             const rows = tasks.map(task => {
+                // Fix: Use name or title from API response, fallback to templateName if needed
+                const taskName = task.name || task.title || task.templateName || '-';
+                const taskDesc = task.description || task.templateDescription || '-';
+                
                 return {
                     data: [
-                        utils.escapeHtml(task.templateName),
-                        utils.escapeHtml(task.templateDescription || '-'),
+                        utils.escapeHtml(taskName),
+                        utils.escapeHtml(taskDesc),
                         `<span class="badge ${badgeClass}">${task.status}</span>`,
                         utils.formatDateReadable(task.createdAt),
                         task.dueDate ? utils.formatDateReadable(task.dueDate) : '-'
@@ -195,8 +199,11 @@
             const statusFilter = document.getElementById('status-filter').value;
 
             filteredTasks = tasks.filter(task => {
-                const matchesSearch = task.templateName.toLowerCase().includes(searchQuery) ||
-                    (task.templateDescription && task.templateDescription.toLowerCase().includes(searchQuery));
+                const taskName = task.name || task.title || task.templateName || '';
+                const taskDesc = task.description || task.templateDescription || '';
+                
+                const matchesSearch = taskName.toLowerCase().includes(searchQuery) ||
+                    taskDesc.toLowerCase().includes(searchQuery);
                 const matchesStatus = !statusFilter || task.status === statusFilter;
 
                 return matchesSearch && matchesStatus;
@@ -214,10 +221,10 @@
 
             const form = document.getElementById('task-details-form');
             form.elements.assignmentId.value = task.id;
-            form.elements.taskName.value = task.templateName;
-            form.elements.description.value = task.templateDescription || '';
-            form.elements.price.value = utils.formatCurrency(task.templatePrice || 0);
-            form.elements.factor.value = task.templateFactor || 1;
+            form.elements.taskName.value = task.name || task.title || task.templateName || '-';
+            form.elements.description.value = task.description || task.templateDescription || '';
+            form.elements.price.value = utils.formatCurrency(task.price || task.templatePrice || 0);
+            form.elements.factor.value = task.factor || task.templateFactor || 1;
             form.elements.assignedDate.value = utils.formatDateReadable(task.createdAt);
             form.elements.dueDate.value = task.dueDate ? utils.formatDateReadable(task.dueDate) : 'Not set';
             form.elements.status.value = task.status;

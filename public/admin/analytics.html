@@ -185,9 +185,9 @@
                 document.getElementById('emp-factor').textContent = employeeData.monthlyFactor;
 
                 // Calculate task stats
-                const tasks = await api.getTaskAssignments({ employeeId: selectedEmployeeId });
-                const completedTasks = tasks.filter(t => t.status === 'Completed').length;
-                const pendingTasks = tasks.filter(t => t.status === 'Pending' || t.status === 'In Progress').length;
+                const tasks = employeeData.assignedTasks || [];
+                const completedTasks = tasks.filter(t => t.status === 'Done').length;
+                const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
 
                 document.getElementById('completed-tasks').textContent = completedTasks;
                 document.getElementById('pending-tasks').textContent = pendingTasks;
@@ -215,49 +215,41 @@
                 hideLoading();
             } catch (error) {
                 hideLoading();
-                showToast('Failed to load employee analytics: ' + error.message, 'error');
+                showToast('Failed to load analytics: ' + error.message, 'error');
             }
         }
 
         async function loadMonthlyStats() {
             if (!selectedEmployeeId) return;
-
             const month = document.getElementById('month-select').value;
+            const container = document.getElementById('monthly-stats');
 
             try {
-                const salaryData = await api.getSalary(selectedEmployeeId, { month });
-
-                const statsContainer = document.getElementById('monthly-stats');
-                statsContainer.innerHTML = `
-          <div class="grid grid-2 gap-2">
-            <div>
-              <h4>Attendance</h4>
-              <p><strong>Total Hours:</strong> ${salaryData.attendance.totalHours}</p>
-              <p><strong>Normal Hours:</strong> ${salaryData.attendance.normalHours}</p>
-              <p><strong>Overtime Hours:</strong> ${salaryData.attendance.overtimeHours}</p>
-            </div>
-            <div>
-              <h4>Tasks</h4>
-              <p><strong>Completed:</strong> ${salaryData.tasks.completed}</p>
-              <p><strong>Earnings:</strong> ${utils.formatCurrency(salaryData.tasks.totalEarnings)}</p>
-            </div>
-            <div>
-              <h4>Responsibilities</h4>
-              <p><strong>Count:</strong> ${salaryData.responsibilities.count}</p>
-              <p><strong>Earnings:</strong> ${utils.formatCurrency(salaryData.responsibilities.totalEarnings)}</p>
-            </div>
-            <div>
-              <h4>Salary</h4>
-              <p><strong>Base:</strong> ${utils.formatCurrency(salaryData.baseSalary)}</p>
-              <p><strong>Gross:</strong> ${utils.formatCurrency(salaryData.grossSalary)}</p>
-              <p><strong>Deductions:</strong> ${utils.formatCurrency(salaryData.deductions.total)}</p>
-              <p><strong>Net:</strong> <span style="color: var(--success); font-size: 1.2rem;">${utils.formatCurrency(salaryData.netSalary)}</span></p>
-            </div>
-          </div>
-        `;
+                container.innerHTML = '<p class="text-muted">Loading stats...</p>';
+                const stats = await api.getMonthlyTotal(selectedEmployeeId, { month });
+                
+                container.innerHTML = `
+                    <div class="grid grid-4">
+                        <div style="text-align: center;">
+                            <h3>${stats.totalSessions || 0}</h3>
+                            <p class="text-muted">Sessions</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <h3>${stats.daysWorked || 0}</h3>
+                            <p class="text-muted">Days</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <h3>${(stats.totalHours || 0).toFixed(1)}</h3>
+                            <p class="text-muted">Hours</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <h3>${stats.avgHoursPerDay || 0}</h3>
+                            <p class="text-muted">Avg/Day</p>
+                        </div>
+                    </div>
+                `;
             } catch (error) {
-                document.getElementById('monthly-stats').innerHTML =
-                    `<p class="text-error">Failed to load monthly stats: ${error.message}</p>`;
+                container.innerHTML = `<p class="text-danger">Failed to load stats: ${error.message}</p>`;
             }
         }
 
@@ -271,9 +263,9 @@
 
             const rows = tasks.map(task => ({
                 data: [
-                    utils.escapeHtml(task.name || task.title || "-"),
+                    utils.escapeHtml(task.title || task.name || task.templateName || '-'),
                     `<span class="badge ${utils.getStatusBadgeClass(task.status)}">${task.status}</span>`,
-                    utils.formatCurrency(task.price),
+                    utils.formatCurrency(task.price || task.templatePrice || 0),
                     utils.formatDateReadable(task.createdAt)
                 ]
             }));

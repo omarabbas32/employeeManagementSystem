@@ -6,21 +6,43 @@ const mapEmployeeDetails = async (employee) => {
     return null;
   }
 
-  const [tasks, responsibilities, attendance, notes] = await Promise.all([
+  const [tasks, assignments, responsibilities, attendance, notes] = await Promise.all([
     allAsync(`SELECT * FROM tasks WHERE assignedEmployeeId = ?`, [employee.id]),
+    allAsync(`
+      SELECT ta.*, tt.name, tt.description, tt.price, tt.factor, tt.type as templateType
+      FROM task_assignments ta
+      JOIN task_templates tt ON ta.templateId = tt.id
+      WHERE ta.assignedEmployeeId = ?
+    `, [employee.id]),
     allAsync(`SELECT * FROM responsibilities WHERE assignedEmployeeId = ?`, [employee.id]),
     allAsync(`SELECT * FROM attendance WHERE employeeId = ? ORDER BY date DESC`, [employee.id]),
     allAsync(`SELECT * FROM notes WHERE employeeId = ? ORDER BY createdAt DESC`, [employee.id]),
   ]);
 
   // Map database fields to frontend expected fields
-  const mappedTasks = tasks.map(task => ({
+  const mappedLegacyTasks = tasks.map(task => ({
     ...task,
+    source: 'legacy',
     title: task.name,
     checkIn: task.checkInTime,
     checkOut: task.checkOutTime,
     totalHours: task.dailyHours
   }));
+
+  const mappedAssignments = assignments.map(task => ({
+    ...task,
+    id: `assign-${task.id}`, // Avoid ID collision with legacy tasks
+    originalId: task.id,
+    source: 'assignment',
+    title: task.name,
+    checkIn: null,
+    checkOut: null,
+    totalHours: 0
+  }));
+
+  const allTasks = [...mappedLegacyTasks, ...mappedAssignments].sort((a, b) =>
+    new Date(b.createdAt) - new Date(a.createdAt)
+  );
 
   const mappedResponsibilities = responsibilities.map(resp => ({
     ...resp,
@@ -36,7 +58,7 @@ const mapEmployeeDetails = async (employee) => {
 
   return {
     ...employee,
-    assignedTasks: mappedTasks,
+    assignedTasks: allTasks,
     assignedResponsibilities: mappedResponsibilities,
     attendanceRecords: mappedAttendance,
     notes,

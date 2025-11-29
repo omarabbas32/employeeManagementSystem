@@ -246,18 +246,11 @@
             }
         }
 
-        // Prompt for attendance code and check in
+        // Check in without code
         async function promptCheckIn() {
-            const code = prompt('Please enter the attendance code provided by admin:');
-
-            if (!code) {
-                showToast('Attendance code is required', 'warning');
-                return;
-            }
-
             try {
                 showLoading();
-                await api.checkIn(user.id, code);
+                await api.checkIn(user.id);
                 hideLoading();
                 showToast('✅ Checked in successfully!', 'success');
                 loadTodaySessions();
@@ -268,18 +261,11 @@
             }
         }
 
-        // Prompt for attendance code and check out
+        // Check out without code
         async function promptCheckOut() {
-            const code = prompt('Please enter the attendance code to check out:');
-
-            if (!code) {
-                showToast('Attendance code is required', 'warning');
-                return;
-            }
-
             try {
                 showLoading();
-                await api.checkOut(user.id, code);
+                await api.checkOut(user.id);
                 hideLoading();
                 showToast('🚪 Checked out successfully!', 'success');
                 loadTodaySessions();

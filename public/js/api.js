@@ -1,5 +1,6 @@
 // API Service - Centralized HTTP client for backend communication
-const API_BASE_URL = 'http://localhost:3000';
+// Use window.location to support both localhost and network access
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:3000`;
 
 class APIService {
     constructor() {

@@ -369,9 +369,11 @@
 
             const rows = filteredAssignments.map(assignment => {
                 const employee = employees.find(e => e.id === assignment.assignedEmployeeId);
+                const taskName = assignment.name || assignment.title || '-';
+                
                 return {
                     data: [
-                        utils.escapeHtml(assignment.templateName),
+                        utils.escapeHtml(taskName),
                         employee ? utils.escapeHtml(employee.name) : 'Unknown',
                         `<span class="badge ${utils.getStatusBadgeClass(assignment.status)}">${assignment.status}</span>`,
                         utils.formatDateReadable(assignment.createdAt),
@@ -402,7 +404,8 @@
             const employeeFilter = document.getElementById('assignment-employee-filter').value;
 
             filteredAssignments = assignments.filter(assignment => {
-                const matchesSearch = assignment.templateName.toLowerCase().includes(searchQuery);
+                const taskName = assignment.name || assignment.title || '';
+                const matchesSearch = taskName.toLowerCase().includes(searchQuery);
                 const matchesStatus = !statusFilter || assignment.status === statusFilter;
                 const matchesEmployee = !employeeFilter || assignment.assignedEmployeeId == employeeFilter;
 
@@ -422,7 +425,7 @@
 
             const form = document.getElementById('manage-assignment-form');
             form.elements.assignmentId.value = assignment.id;
-            form.elements.templateName.value = assignment.templateName;
+            form.elements.templateName.value = assignment.name || assignment.title || '-';
             form.elements.assignedEmployeeId.value = assignment.assignedEmployeeId;
             form.elements.status.value = assignment.status;
 
