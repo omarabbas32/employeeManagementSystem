@@ -83,6 +83,7 @@ const initDatabase = async () => {
   await ensureColumn('employees', 'normalHourRate', 'REAL DEFAULT 10');
   await ensureColumn('employees', 'overtimeHourRate', 'REAL DEFAULT 15');
   await ensureColumn('employees', 'requiredMonthlyHours', 'REAL DEFAULT 160');
+  await ensureColumn('employees', 'hourlyRate', 'REAL DEFAULT 15');
   await runAsync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_username ON employees(username)`);
   await runAsync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_email ON employees(email)`);
 
@@ -229,6 +230,13 @@ const initDatabase = async () => {
       [typeName, typeName.toLowerCase()]
     );
   }
+
+  // Migration: Backfill completedAt for completed tasks that don't have it
+  await runAsync(`
+    UPDATE task_assignments 
+    SET completedAt = COALESCE(dueDate, createdAt, datetime('now'))
+    WHERE status = 'Completed' AND completedAt IS NULL
+  `);
 
   console.log('✅ Database initialized successfully');
   console.log('✅ Multiple check-ins per day enabled');

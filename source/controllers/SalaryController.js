@@ -19,7 +19,7 @@ const fetchCompletedTasks = (employeeId) =>
      FROM task_assignments ta
      JOIN task_templates tt ON ta.templateId = tt.id
      WHERE ta.assignedEmployeeId = ?
-       AND ta.status = 'Completed'`,
+       AND (ta.status = 'Completed' OR ta.status = 'Done')`,
     [employeeId]
   );
 
@@ -79,67 +79,25 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
 
   const monthValue = month || dayjs().format('YYYY-MM');
   const monthPattern = `${monthValue}%`;
-  const [settings, totalHours, tasks, responsibilities, deductions] = await Promise.all([
+  const [settings, totalHours, deductions] = await Promise.all([
     fetchSettings(),
     fetchAttendanceTotals(employeeId, monthPattern),
-    fetchCompletedTasks(employeeId),
-    fetchResponsibilities(employeeId),
     fetchDeductions(employeeId),
   ]);
 
-  // Filter tasks by completion month (for completed tasks, use completedAt date)
-  const tasksForMonth = tasks.filter((task) => {
-    if (!monthValue) {
-      return true;
-    }
-    // For completed tasks, check if they were completed in this month
-    if (task.completedAt && task.completedAt.startsWith(monthValue)) {
-      return true;
-    }
-    // Fallback: check start/due dates if no completion date
-    const startsInMonth = task.startDate && task.startDate.startsWith(monthValue);
-    const dueInMonth = task.dueDate && task.dueDate.startsWith(monthValue);
-    return startsInMonth || dueInMonth;
-  });
+  // SIMPLIFIED CALCULATION: Net Salary = Base Salary + (Total Hours × Hourly Rate) - Deductions
 
-  // Use employee-specific required hours, fallback to global threshold
-  const requiredMonthlyHours = employee.requiredMonthlyHours || settings?.overtimeThresholdHours || 160;
+  // Use employee-specific hourly rate, fallback to global settings if not set
+  const hourlyRate = employee.hourlyRate || settings?.normalHourRate || 15;
 
-  // Calculate normal and overtime hours based on employee's required hours
-  const normalHours = Math.min(totalHours, requiredMonthlyHours);
-  const overtimeHours = Math.max(totalHours - requiredMonthlyHours, 0);
-
-  // Use employee-specific hourly rates, fallback to global settings if not set
-  const normalHourRate = employee.normalHourRate || settings?.normalHourRate || 10;
-  const overtimeHourRate = employee.overtimeHourRate || settings?.overtimeHourRate || 15;
-
-  const normalPay = normalHours * normalHourRate;
-  const overtimePay = overtimeHours * overtimeHourRate;
-
-  const employeeFactor = employee.monthlyFactor || 1;
-  const overtimeFactor = employee.overtimeFactor || 1;
-  const overtimeBonusMultiplier = overtimeHours > 0 ? overtimeFactor : 1;
-
-  const regularTaskPayment = calculateTaskPayment(
-    tasksForMonth,
-    employeeFactor,
-    overtimeBonusMultiplier,
-    Boolean(settings?.allowTaskOvertimeFactor)
-  );
-  const responsibilityPayment = calculateResponsibilityPayment(responsibilities, employeeFactor);
-
-  let responsibilityDeduction = 0;
-  if (settings?.allowResponsibilityDeduction) {
-    const incomplete = responsibilities.filter((resp) => resp.status !== 'Done');
-    responsibilityDeduction = sum(incomplete.map((resp) => (resp.monthlyPrice || 0) * (resp.factor || employeeFactor)));
-  }
+  // Calculate working hours payment (all hours paid at same rate)
+  const workingHoursPay = totalHours * hourlyRate;
 
   const baseSalary = employee.baseSalary || 0;
-  const grossBeforeDeductions =
-    baseSalary + normalPay + overtimePay + regularTaskPayment + responsibilityPayment - responsibilityDeduction;
+  const grossSalary = baseSalary + workingHoursPay;
 
-  const deductionResult = applyDeductions(deductions, grossBeforeDeductions);
-  const netSalary = grossBeforeDeductions - deductionResult.total;
+  const deductionResult = applyDeductions(deductions, grossSalary);
+  const netSalary = grossSalary - deductionResult.total;
 
   // Return structure that matches frontend expectations
   return {
@@ -151,22 +109,8 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
     // Attendance data
     attendance: {
       totalHours: totalHours || 0,
-      requiredMonthlyHours: requiredMonthlyHours || 160,
-      normalHours: normalHours || 0,
-      overtimeHours: overtimeHours || 0,
-      normalPay: normalPay || 0,
-      overtimePay: overtimePay || 0
-    },
-    // Tasks data
-    tasks: {
-      completed: tasksForMonth.length,
-      totalEarnings: regularTaskPayment || 0
-    },
-    // Responsibilities data
-    responsibilities: {
-      count: responsibilities.length,
-      totalEarnings: responsibilityPayment || 0,
-      deduction: responsibilityDeduction || 0
+      hourlyRate: hourlyRate,
+      workingHoursPay: workingHoursPay || 0
     },
     // Deductions
     deductions: {
@@ -174,7 +118,7 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
       details: deductionResult.details
     },
     // Totals
-    grossSalary: grossBeforeDeductions,
+    grossSalary: grossSalary,
     netSalary: netSalary
   };
 };
@@ -207,21 +151,6 @@ const generateEmployeeInvoice = async (employeeId, month) => {
     [employeeId, monthPattern]
   );
 
-  // Fetch completed tasks for the month
-  const allTasks = await fetchCompletedTasks(employeeId);
-  const tasksForMonth = allTasks.filter((task) => {
-    if (!monthValue) return true;
-    const startsInMonth = task.startDate && task.startDate.startsWith(monthValue);
-    const dueInMonth = task.dueDate && task.dueDate.startsWith(monthValue);
-    return startsInMonth || dueInMonth || (!task.startDate && !task.dueDate);
-  });
-
-  // Fetch responsibilities
-  const responsibilities = await fetchResponsibilities(employeeId);
-
-  // Fetch deductions
-  const deductions = await fetchDeductions(employeeId);
-
   return {
     employee: salaryData.employee || {},
     period: monthValue,
@@ -230,38 +159,13 @@ const generateEmployeeInvoice = async (employeeId, month) => {
     // Attendance details
     attendance: {
       totalHours: salaryData.attendance.totalHours,
-      normalHours: salaryData.attendance.normalHours,
-      overtimeHours: salaryData.attendance.overtimeHours,
+      hourlyRate: salaryData.attendance.hourlyRate,
+      workingHoursPay: salaryData.attendance.workingHoursPay,
       sessions: attendanceSessions.map(s => ({
         date: s.date,
         checkIn: s.checkInTime,
         checkOut: s.checkOutTime,
         hours: s.dailyHours
-      }))
-    },
-
-    // Tasks details
-    tasks: {
-      completed: tasksForMonth.length,
-      totalEarnings: salaryData.tasks.totalEarnings,
-      list: tasksForMonth.map(t => ({
-        title: t.name,
-        description: t.description,
-        price: t.price,
-        factor: t.factor,
-        completedDate: t.dueDate
-      }))
-    },
-
-    // Responsibilities details
-    responsibilities: {
-      count: responsibilities.length,
-      totalEarnings: salaryData.responsibilities.totalEarnings,
-      list: responsibilities.map(r => ({
-        title: r.name,
-        description: r.description,
-        monthlyPrice: r.monthlyPrice,
-        factor: r.factor
       }))
     },
 
@@ -274,6 +178,7 @@ const generateEmployeeInvoice = async (employeeId, month) => {
     // Salary breakdown
     salary: {
       base: salaryData.baseSalary,
+      workingHoursPay: salaryData.attendance.workingHoursPay,
       gross: salaryData.grossSalary,
       deductions: salaryData.deductions.total,
       net: salaryData.netSalary

@@ -32,8 +32,8 @@ const checkIn = async ({ employeeId, code, timestamp, date }) => {
     throw new Error('employeeId is required');
   }
 
-  // ALWAYS validate attendance code
-  await checkAttendanceCode(code);
+  // Attendance code validation removed - no code required
+  // Multiple check-ins per day are allowed
 
   const day = formatDate(date);
   const checkInTime = timestamp || dayjs().toISOString();
@@ -59,8 +59,7 @@ const checkOut = async ({ employeeId, code, timestamp, date }) => {
     throw new Error('employeeId is required');
   }
 
-  // ALWAYS validate attendance code
-  await checkAttendanceCode(code);
+  // Attendance code validation removed - no code required
 
   const day = formatDate(date);
 
