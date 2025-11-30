@@ -57,11 +57,13 @@
                                 <p><strong>Name:</strong> <span id="emp-name"></span></p>
                                 <p><strong>Email:</strong> <span id="emp-email"></span></p>
                                 <p><strong>Username:</strong> <span id="emp-username"></span></p>
+                                <p><strong>Hour Rate:</strong> <span id="emp-hour-rate"></span></p>
                             </div>
                             <div>
                                 <p><strong>Type:</strong> <span id="emp-type"></span></p>
                                 <p><strong>Base Salary:</strong> <span id="emp-salary"></span></p>
                                 <p><strong>Monthly Factor:</strong> <span id="emp-factor"></span></p>
+                                <p><strong>Overtime Price:</strong> <span id="emp-overtime-rate"></span></p>
                             </div>
                         </div>
                     </div>
@@ -183,6 +185,8 @@
                 document.getElementById('emp-type').textContent = employeeData.employeeType;
                 document.getElementById('emp-salary').textContent = utils.formatCurrency(employeeData.baseSalary);
                 document.getElementById('emp-factor').textContent = employeeData.monthlyFactor;
+                document.getElementById('emp-hour-rate').textContent = utils.formatCurrency(employeeData.normalHourRate || 10);
+                document.getElementById('emp-overtime-rate').textContent = utils.formatCurrency(employeeData.overtimeHourRate || 15);
 
                 // Calculate task stats
                 const tasks = employeeData.assignedTasks || [];

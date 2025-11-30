@@ -147,10 +147,10 @@ const listAssignments = async (filters = {}) => {
     const assignments = await allAsync(
         `SELECT 
       ta.*,
-      tt.name,
-      tt.description,
-      tt.price,
-      tt.factor,
+      tt.name as templateName,
+      tt.description as templateDescription,
+      tt.price as templatePrice,
+      tt.factor as templateFactor,
       tt.type as templateType
      FROM task_assignments ta
      JOIN task_templates tt ON ta.templateId = tt.id

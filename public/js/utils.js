@@ -20,10 +20,26 @@ const utils = {
         });
     },
 
-    // Format time (HH:MM:SS to HH:MM)
+    // Format time (HH:MM:SS to HH:MM AM/PM or ISO timestamp to HH:MM AM/PM)
     formatTime(time) {
         if (!time) return '';
-        return time.substring(0, 5);
+
+        // If it's an ISO timestamp (contains 'T'), extract time portion
+        if (time.includes('T')) {
+            const date = new Date(time);
+            return date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+
+        // Otherwise treat as time string (HH:MM:SS) and convert to 12-hour format
+        const [hours, minutes] = time.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12.toString().padStart(2, '0')}:${minutes} ${ampm}`;
     },
 
     // Format datetime
@@ -49,10 +65,11 @@ const utils = {
 
     // Format currency
     formatCurrency(amount) {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD'
+        const formatted = new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
         }).format(amount || 0);
+        return `${formatted} L.E`;
     },
 
     // Format number
