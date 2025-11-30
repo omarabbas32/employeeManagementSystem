@@ -242,11 +242,13 @@ const updateAssignmentStatus = async (assignmentId, status) => {
         throw error;
     }
 
-    const completedAt = status === 'Completed' ? new Date().toISOString() : null;
+    const dayjs = require('dayjs');
+    const completedAt = (status === 'Done' || status === 'Completed') ? new Date().toISOString() : assignment.completedAt;
+    const completedMonth = (status === 'Done' || status === 'Completed') ? dayjs().format('YYYY-MM') : assignment.completedMonth;
 
     await runAsync(
-        `UPDATE task_assignments SET status = ?, completedAt = ? WHERE id = ?`,
-        [status, completedAt, assignmentId]
+        `UPDATE task_assignments SET status = ?, completedAt = ?, completedMonth = ? WHERE id = ?`,
+        [status, completedAt, completedMonth, assignmentId]
     );
 
     const updated = await getAsync(

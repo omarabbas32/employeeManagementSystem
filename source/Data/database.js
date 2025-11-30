@@ -238,8 +238,34 @@ const initDatabase = async () => {
     WHERE status = 'Completed' AND completedAt IS NULL
   `);
 
+  // ========== MONTHLY PAYROLL SYSTEM MIGRATIONS ==========
+  const dayjs = require('dayjs');
+  const currentMonth = dayjs().format('YYYY-MM');
+
+  // Add month tracking columns
+  await ensureColumn('responsibilities', 'month', 'TEXT');
+  await ensureColumn('deduction_rules', 'month', 'TEXT');
+  await ensureColumn('task_assignments', 'completedMonth', 'TEXT');
+
+  // Create indexes for month-based queries
+  await runAsync(`CREATE INDEX IF NOT EXISTS idx_responsibilities_month ON responsibilities(month, assignedEmployeeId)`);
+  await runAsync(`CREATE INDEX IF NOT EXISTS idx_deductions_month ON deduction_rules(month, applyToEmployeeId)`);
+  await runAsync(`CREATE INDEX IF NOT EXISTS idx_task_assignments_completed_month ON task_assignments(completedMonth)`);
+
+  // Backfill existing data with current month
+  await runAsync(`UPDATE responsibilities SET month = ? WHERE month IS NULL`, [currentMonth]);
+  await runAsync(`UPDATE deduction_rules SET month = ? WHERE month IS NULL`, [currentMonth]);
+  await runAsync(`
+    UPDATE task_assignments 
+    SET completedMonth = substr(completedAt, 1, 7)
+    WHERE (status = 'Done' OR status = 'Completed') 
+      AND completedAt IS NOT NULL 
+      AND completedMonth IS NULL
+  `);
+
   console.log('✅ Database initialized successfully');
   console.log('✅ Multiple check-ins per day enabled');
+  console.log('✅ Monthly payroll system enabled');
 };
 
 module.exports = {

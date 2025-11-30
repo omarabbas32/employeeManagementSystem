@@ -13,26 +13,33 @@ const fetchAttendanceTotals = async (employeeId, monthPattern) => {
   return sum(records.map((r) => r.dailyHours));
 };
 
-const fetchCompletedTasks = (employeeId) =>
+const fetchCompletedTasks = (employeeId, month) =>
   allAsync(
     `SELECT ta.*, tt.name, tt.description, tt.price, tt.factor
      FROM task_assignments ta
      JOIN task_templates tt ON ta.templateId = tt.id
      WHERE ta.assignedEmployeeId = ?
-       AND (ta.status = 'Completed' OR ta.status = 'Done')`,
-    [employeeId]
+       AND (ta.status = 'Completed' OR ta.status = 'Done')
+       AND ta.completedMonth = ?`,
+    [employeeId, month]
   );
 
-const fetchResponsibilities = (employeeId) =>
-  allAsync(`SELECT * FROM responsibilities WHERE assignedEmployeeId = ?`, [employeeId]);
+const fetchResponsibilities = (employeeId, month) =>
+  allAsync(
+    `SELECT * FROM responsibilities 
+     WHERE assignedEmployeeId = ? AND month = ?`,
+    [employeeId, month]
+  );
 
 const fetchSettings = () => getAsync(`SELECT * FROM admin_settings WHERE id = 1`);
 
-const fetchDeductions = (employeeId) =>
+const fetchDeductions = (employeeId, month) =>
   allAsync(
     `SELECT * FROM deduction_rules
-     WHERE isActive = 1 AND (applyToEmployeeId IS NULL OR applyToEmployeeId = ?)`,
-    [employeeId]
+     WHERE isActive = 1 
+       AND (applyToEmployeeId IS NULL OR applyToEmployeeId = ?)
+       AND month = ?`,
+    [employeeId, month]
   );
 
 const calculateTaskPayment = (tasks, employeeFactor, overtimeBonus, allowTaskOvertimeFactor) => {
@@ -82,9 +89,9 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
   const [settings, totalHours, deductions, completedTasks, responsibilities] = await Promise.all([
     fetchSettings(),
     fetchAttendanceTotals(employeeId, monthPattern),
-    fetchDeductions(employeeId),
-    fetchCompletedTasks(employeeId),
-    fetchResponsibilities(employeeId),
+    fetchDeductions(employeeId, monthValue),
+    fetchCompletedTasks(employeeId, monthValue),
+    fetchResponsibilities(employeeId, monthValue),
   ]);
 
   // COMPLETE CALCULATION: Net Salary = Base + Hours Pay + Task Earnings + Responsibility Earnings - Deductions

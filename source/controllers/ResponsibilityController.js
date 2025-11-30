@@ -9,26 +9,30 @@ const listResponsibilities = async (filters = {}) => {
     params.push(filters.employeeId);
   }
 
+  if (filters.month) {
+    conditions.push('month = ?');
+    params.push(filters.month);
+  }
+
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const responsibilities = await allAsync(`SELECT * FROM responsibilities ${whereClause} ORDER BY id DESC`, params);
-  // Map 'name' to 'title' for frontend compatibility
+
   return responsibilities.map(resp => ({ ...resp, title: resp.name }));
 };
 
 const createResponsibility = async (payload) => {
-  // Accept both 'title' and 'name' for compatibility
-  const name = payload.title || payload.name;
-  const { description = '', monthlyPrice = 0, assignedEmployeeId, assignedBy = 'admin', status = 'Active', factor = 1 } =
-    payload;
+  const dayjs = require('dayjs');
+  const { name, description = '', monthlyPrice = 0, assignedEmployeeId, assignedBy, status = 'Active', factor = 1 } = payload;
+  const month = payload.month || dayjs().format('YYYY-MM');
 
   if (!name || !assignedEmployeeId) {
-    throw new Error('title and assignedEmployeeId are required');
+    throw new Error('name and assignedEmployeeId are required');
   }
 
   const result = await runAsync(
-    `INSERT INTO responsibilities (name, description, monthlyPrice, assignedEmployeeId, assignedBy, status, factor)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [name, description, monthlyPrice, assignedEmployeeId, assignedBy, status, factor]
+    `INSERT INTO responsibilities (name, description, monthlyPrice, assignedEmployeeId, assignedBy, status, factor, month)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, description, monthlyPrice, assignedEmployeeId, assignedBy || 'Admin', status, factor, month]
   );
 
   const responsibility = await getAsync(`SELECT * FROM responsibilities WHERE id = ?`, [result.lastID]);

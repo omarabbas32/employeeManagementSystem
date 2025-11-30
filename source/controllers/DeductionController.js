@@ -1,6 +1,6 @@
 const { allAsync, getAsync, runAsync } = require('../Data/database');
 
-const listDeductions = async (requestingUser) => {
+const listDeductions = async (requestingUser, month = null) => {
   let query = `SELECT d.*, e.name as employeeName 
                FROM deduction_rules d
                LEFT JOIN employees e ON d.applyToEmployeeId = e.id
@@ -11,6 +11,12 @@ const listDeductions = async (requestingUser) => {
   if (!requestingUser.isAdmin) {
     query += ` AND d.applyToEmployeeId = ?`;
     params.push(requestingUser.id);
+  }
+
+  // Filter by month if provided
+  if (month) {
+    query += ` AND d.month = ?`;
+    params.push(month);
   }
 
   query += ` ORDER BY d.id DESC`;
@@ -27,11 +33,13 @@ const listDeductions = async (requestingUser) => {
 };
 
 const createDeduction = async (payload) => {
+  const dayjs = require('dayjs');
   // Accept both frontend (value, employeeId) and backend (amount, applyToEmployeeId) field names
   const name = payload.name;
   const amount = payload.value !== undefined ? payload.value : payload.amount;
   const applyToEmployeeId = payload.employeeId !== undefined ? payload.employeeId : payload.applyToEmployeeId;
   const isActive = payload.isActive !== undefined ? payload.isActive : 1;
+  const month = payload.month || dayjs().format('YYYY-MM');
 
   // Validate required fields
   if (!name || amount == null) {
@@ -51,9 +59,9 @@ const createDeduction = async (payload) => {
   const type = 'fixed';
 
   const result = await runAsync(
-    `INSERT INTO deduction_rules (name, type, amount, applyToEmployeeId, isActive)
-     VALUES (?, ?, ?, ?, ?)`,
-    [name, type, amount, applyToEmployeeId || null, isActive ? 1 : 0]
+    `INSERT INTO deduction_rules (name, type, amount, applyToEmployeeId, isActive, month)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [name, type, amount, applyToEmployeeId || null, isActive ? 1 : 0, month]
   );
 
   const deduction = await getAsync(`SELECT * FROM deduction_rules WHERE id = ?`, [result.lastID]);
@@ -135,13 +143,19 @@ const createBulkDeduction = async (payload) => {
 };
 
 // Get all deductions for a specific employee (both company-wide and individual)
-const getEmployeeDeductions = async (employeeId) => {
-  const deductions = await allAsync(
-    `SELECT * FROM deduction_rules
-     WHERE isActive = 1 AND (applyToEmployeeId IS NULL OR applyToEmployeeId = ?)
-     ORDER BY id DESC`,
-    [employeeId]
-  );
+const getEmployeeDeductions = async (employeeId, month = null) => {
+  let query = `SELECT * FROM deduction_rules
+     WHERE isActive = 1 AND (applyToEmployeeId IS NULL OR applyToEmployeeId = ?)`;
+  const params = [employeeId];
+
+  if (month) {
+    query += ` AND month = ?`;
+    params.push(month);
+  }
+
+  query += ` ORDER BY id DESC`;
+
+  const deductions = await allAsync(query, params);
 
   return deductions.map(d => ({
     ...d,
