@@ -236,14 +236,14 @@
             const formData = new FormData(form);
 
             const data = {
-                title: formData.get('title'),
+                name: formData.get('title'),  // Backend expects 'name' field
                 description: formData.get('description') || '',
                 assignedEmployeeId: parseInt(formData.get('assignedEmployeeId')),
                 monthlyPrice: parseFloat(formData.get('monthlyPrice')),
                 factor: parseFloat(formData.get('factor')) || 1
             };
 
-            if (!data.title || !data.assignedEmployeeId || data.monthlyPrice === undefined) {
+            if (!data.name || !data.assignedEmployeeId || data.monthlyPrice === undefined) {
                 showToast('Please fill in all required fields', 'error');
                 return;
             }

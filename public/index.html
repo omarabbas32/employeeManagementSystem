@@ -1,109 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Employee Management System</title>
-  <link rel="stylesheet" href="css/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Employee Management System</title>
+    <link rel="stylesheet" href="./css/styles.css">
 </head>
+
 <body>
-  <div class="login-container">
-    <div class="login-card">
-      <div class="login-header">
-        <h1>Employee Management System</h1>
-        <p>Please login to continue</p>
-      </div>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>Employee Management System</h1>
+                <p>Please login to continue</p>
+            </div>
 
-      <form id="login-form">
-        <div class="form-group">
-          <label class="form-label" for="username">Username or Email</label>
-          <input 
-            type="text" 
-            id="username" 
-            class="form-control" 
-            placeholder="Enter username or email"
-            required
-          >
-          <div class="form-error" id="username-error"></div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label" for="username">Username or Email</label>
+                    <input type="text" id="username" class="form-control" placeholder="Enter username or email"
+                        required>
+                    <div class="form-error" id="username-error"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-control" placeholder="Enter password" required>
+                    <div class="form-error" id="password-error"></div>
+                </div>
+
+                <div class="form-error" id="login-error"></div>
+
+                <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1rem;">
+                    Login
+                </button>
+            </form>
         </div>
-
-        <div class="form-group">
-          <label class="form-label" for="password">Password</label>
-          <input 
-            type="password" 
-            id="password" 
-            class="form-control" 
-            placeholder="Enter password"
-            required
-          >
-          <div class="form-error" id="password-error"></div>
-        </div>
-
-        <div class="form-error" id="login-error"></div>
-
-        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1rem;">
-          Login
-        </button>
-      </form>
     </div>
-  </div>
 
-  <script src="js/api.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/components.js"></script>
-  <script>
-    // Redirect if already logged in
-    if (auth.isAuthenticated()) {
-      auth.redirectToDashboard();
-    }
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/components.js"></script>
+    <script>
+        // Redirect if already logged in
+        if (auth.isAuthenticated()) {
+            auth.redirectToDashboard();
+        }
 
-    const loginForm = document.getElementById('login-form');
-    const usernameInput = document.getElementById('username');
-    const passwordInput = document.getElementById('password');
-    const loginError = document.getElementById('login-error');
+        const loginForm = document.getElementById('login-form');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const loginError = document.getElementById('login-error');
 
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      // Clear previous errors
-      loginError.textContent = '';
-      
-      const username = usernameInput.value.trim();
-      const password = passwordInput.value;
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
 
-      if (!username || !password) {
-        loginError.textContent = 'Please enter both username and password';
-        return;
-      }
+            // Clear previous errors
+            loginError.textContent = '';
 
-      try {
-        showLoading();
-        
-        // Determine if input is email or username
-        const credentials = utils.isValidEmail(username)
-          ? { email: username, password }
-          : { username, password };
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
 
-        const response = await api.login(credentials);
-        
-        // Save login data
-        auth.saveLoginData(response.token, response.employee);
-        
-        hideLoading();
-        showToast('Login successful!', 'success', 1500);
-        
-        // Redirect to appropriate dashboard
-        setTimeout(() => {
-          auth.redirectToDashboard();
-        }, 1500);
-        
-      } catch (error) {
-        hideLoading();
-        loginError.textContent = error.message || 'Login failed. Please check your credentials.';
-        showToast('Login failed', 'error');
-      }
-    });
-  </script>
+            if (!username || !password) {
+                loginError.textContent = 'Please enter both username and password';
+                return;
+            }
+
+            try {
+                showLoading();
+
+                // Determine if input is email or username
+                const credentials = utils.isValidEmail(username)
+                    ? { email: username, password }
+                    : { username, password };
+
+                const response = await api.login(credentials);
+
+                // Save login data
+                auth.saveLoginData(response.token, response.employee);
+
+                hideLoading();
+                showToast('Login successful!', 'success', 1500);
+
+                // Redirect to appropriate dashboard
+                setTimeout(() => {
+                    auth.redirectToDashboard();
+                }, 1500);
+
+            } catch (error) {
+                hideLoading();
+                loginError.textContent = error.message || 'Login failed. Please check your credentials.';
+                showToast('Login failed', 'error');
+            }
+        });
+    </script>
 </body>
+
 </html>

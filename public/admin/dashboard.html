@@ -2,153 +2,153 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - EMS</title>
-    <link rel="stylesheet" href="../css/styles.css">
-    <style>
-        .hours-progress-container {
-            margin-bottom: 1.5rem;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - EMS</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .hours-progress-container {
+      margin-bottom: 1.5rem;
+    }
 
-        .hours-progress-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
+    .hours-progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
 
-        .hours-progress-name {
-            font-weight: 600;
-            font-size: 1rem;
-        }
+    .hours-progress-name {
+      font-weight: 600;
+      font-size: 1rem;
+    }
 
-        .hours-progress-stats {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-        }
+    .hours-progress-stats {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
 
-        .hours-progress-bar-container {
-            width: 100%;
-            height: 24px;
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            overflow: hidden;
-            position: relative;
-        }
+    .hours-progress-bar-container {
+      width: 100%;
+      height: 24px;
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+    }
 
-        .hours-progress-bar {
-            height: 100%;
-            transition: width 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding-right: 8px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: white;
-        }
+    .hours-progress-bar {
+      height: 100%;
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: white;
+    }
 
-        .hours-progress-normal {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        }
+    .hours-progress-normal {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
 
-        .hours-progress-overtime {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        }
+    .hours-progress-overtime {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
 
-        .hours-progress-warning {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        }
-    </style>
+    .hours-progress-warning {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+  </style>
 </head>
 
 <body>
-    <div class="page-wrapper">
-        <div id="sidebar-container"></div>
+  <div class="page-wrapper">
+    <div id="sidebar-container"></div>
 
-        <div class="main-content">
-            <div class="card">
-                <h1>Admin Dashboard</h1>
-                <p class="text-muted">Welcome to the Employee Management System</p>
-            </div>
+    <div class="main-content">
+      <div class="card">
+        <h1>Admin Dashboard</h1>
+        <p class="text-muted">Welcome to the Employee Management System</p>
+      </div>
 
-            <div class="grid grid-4" id="stats-grid">
-                <!-- Stats will be loaded here -->
-            </div>
+      <div class="grid grid-4" id="stats-grid">
+        <!-- Stats will be loaded here -->
+      </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Quick Actions</h3>
-                </div>
-                <div class="card-body">
-                    <div class="grid grid-3 gap-2">
-                        <a href="employees.html" class="btn btn-primary">
-                            👥 Manage Employees
-                        </a>
-                        <a href="tasks.html" class="btn btn-primary">
-                            📋 Manage Tasks
-                        </a>
-                        <a href="payroll.html" class="btn btn-primary">
-                            💵 Generate Payroll
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Employee Hours Tracking (This Month)</h3>
-                </div>
-                <div class="card-body" id="hours-tracking">
-                    <p class="text-muted">Loading employee hours...</p>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Recent Activity</h3>
-                </div>
-                <div class="card-body" id="recent-activity">
-                    <p class="text-muted">Loading recent activity...</p>
-                </div>
-            </div>
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Quick Actions</h3>
         </div>
+        <div class="card-body">
+          <div class="grid grid-3 gap-2">
+            <a href="employees.html" class="btn btn-primary">
+              👥 Manage Employees
+            </a>
+            <a href="tasks.html" class="btn btn-primary">
+              📋 Manage Tasks
+            </a>
+            <a href="payroll.html" class="btn btn-primary">
+              💵 Generate Payroll
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Employee Hours Tracking (This Month)</h3>
+        </div>
+        <div class="card-body" id="hours-tracking">
+          <p class="text-muted">Loading employee hours...</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Recent Activity</h3>
+        </div>
+        <div class="card-body" id="recent-activity">
+          <p class="text-muted">Loading recent activity...</p>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/components.js"></script>
-    <script>
-        // Protect page - Admin only
-        if (!auth.init('Admin')) {
-            throw new Error('Unauthorized');
-        }
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/components.js"></script>
+  <script>
+    // Protect page - Admin only
+    if (!auth.init('Admin')) {
+      throw new Error('Unauthorized');
+    }
 
-        // Render sidebar
-        document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'dashboard');
+    // Render sidebar
+    document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'dashboard');
 
-        // Load dashboard data
-        async function loadDashboard() {
-            try {
-                showLoading();
+    // Load dashboard data
+    async function loadDashboard() {
+      try {
+        showLoading();
 
-                const [employees, tasks, settings] = await Promise.all([
-                    api.getEmployees(),
-                    api.getTasks(),
-                    api.getSettings()
-                ]);
+        const [employees, tasks, settings] = await Promise.all([
+          api.getEmployees(),
+          api.getTasks(),
+          api.getSettings()
+        ]);
 
-                // Calculate stats
-                const totalEmployees = employees.length;
-                const totalTasks = tasks.length;
-                const completedTasks = tasks.filter(t => t.status === 'Done').length;
-                const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
+        // Calculate stats
+        const totalEmployees = employees.length;
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter(t => t.status === 'Done').length;
+        const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
 
-                // Render stats
-                const statsGrid = document.getElementById('stats-grid');
-                statsGrid.innerHTML = `
+        // Render stats
+        const statsGrid = document.getElementById('stats-grid');
+        statsGrid.innerHTML = `
           <div class="stat-card">
             <h3>${totalEmployees}</h3>
             <p>Total Employees</p>
@@ -167,17 +167,17 @@
           </div>
         `;
 
-                // Load employee hours tracking
-                await loadEmployeeHours(employees);
+        // Load employee hours tracking
+        await loadEmployeeHours(employees);
 
-                // Show recent tasks
-                const recentTasks = tasks.slice(0, 5);
-                const activityContainer = document.getElementById('recent-activity');
+        // Show recent tasks
+        const recentTasks = tasks.slice(0, 5);
+        const activityContainer = document.getElementById('recent-activity');
 
-                if (recentTasks.length === 0) {
-                    activityContainer.innerHTML = '<p class="text-muted">No recent tasks</p>';
-                } else {
-                    activityContainer.innerHTML = `
+        if (recentTasks.length === 0) {
+          activityContainer.innerHTML = '<p class="text-muted">No recent tasks</p>';
+        } else {
+          activityContainer.innerHTML = `
             <div class="table-container">
               <table>
                 <thead>
@@ -190,8 +190,8 @@
                 </thead>
                 <tbody>
                   ${recentTasks.map(task => {
-                        const employee = employees.find(e => e.id === task.assignedEmployeeId);
-                        return `
+            const employee = employees.find(e => e.id === task.assignedEmployeeId);
+            return `
                       <tr>
                         <td><strong>${utils.escapeHtml(task.title)}</strong></td>
                         <td>${employee ? utils.escapeHtml(employee.name) : 'Unknown'}</td>
@@ -199,67 +199,67 @@
                         <td>${utils.formatDateReadable(task.createdAt)}</td>
                       </tr>
                     `;
-                    }).join('')}
+          }).join('')}
                 </tbody>
               </table>
             </div>
           `;
-                }
-
-                hideLoading();
-            } catch (error) {
-                hideLoading();
-                showToast('Failed to load dashboard data: ' + error.message, 'error');
-            }
         }
 
-        async function loadEmployeeHours(employees) {
-            const container = document.getElementById('hours-tracking');
-            const currentMonth = utils.getCurrentMonth();
+        hideLoading();
+      } catch (error) {
+        hideLoading();
+        showToast('Failed to load dashboard data: ' + error.message, 'error');
+      }
+    }
 
+    async function loadEmployeeHours(employees) {
+      const container = document.getElementById('hours-tracking');
+      const currentMonth = utils.getCurrentMonth();
+
+      try {
+        // Get attendance data for all employees for current month
+        const hoursData = await Promise.all(
+          employees.map(async (emp) => {
             try {
-                // Get attendance data for all employees for current month
-                const hoursData = await Promise.all(
-                    employees.map(async (emp) => {
-                        try {
-                            const monthlyTotal = await api.getMonthlyTotal(emp.id, currentMonth);
-                            return {
-                                employee: emp,
-                                totalHours: monthlyTotal.totalHours || 0,
-                                requiredHours: emp.requiredMonthlyHours || 160
-                            };
-                        } catch (error) {
-                            return {
-                                employee: emp,
-                                totalHours: 0,
-                                requiredHours: emp.requiredMonthlyHours || 160
-                            };
-                        }
-                    })
-                );
+              const monthlyTotal = await api.getMonthlyTotal(emp.id, currentMonth);
+              return {
+                employee: emp,
+                totalHours: monthlyTotal.totalHours || 0,
+                requiredHours: emp.requiredMonthlyHours || 160
+              };
+            } catch (error) {
+              return {
+                employee: emp,
+                totalHours: 0,
+                requiredHours: emp.requiredMonthlyHours || 160
+              };
+            }
+          })
+        );
 
-                // Sort by total hours descending
-                hoursData.sort((a, b) => b.totalHours - a.totalHours);
+        // Sort by total hours descending
+        hoursData.sort((a, b) => b.totalHours - a.totalHours);
 
-                if (hoursData.length === 0) {
-                    container.innerHTML = '<p class="text-muted">No employees found</p>';
-                    return;
-                }
+        if (hoursData.length === 0) {
+          container.innerHTML = '<p class="text-muted">No employees found</p>';
+          return;
+        }
 
-                container.innerHTML = hoursData.map(data => {
-                    const { employee, totalHours, requiredHours } = data;
-                    const percentage = Math.min((totalHours / requiredHours) * 100, 100);
-                    const overtimeHours = Math.max(totalHours - requiredHours, 0);
-                    const isOvertime = totalHours > requiredHours;
+        container.innerHTML = hoursData.map(data => {
+          const { employee, totalHours, requiredHours } = data;
+          const percentage = Math.min((totalHours / requiredHours) * 100, 100);
+          const overtimeHours = Math.max(totalHours - requiredHours, 0);
+          const isOvertime = totalHours > requiredHours;
 
-                    let barClass = 'hours-progress-normal';
-                    if (overtimeHours > 20) {
-                        barClass = 'hours-progress-warning';
-                    } else if (isOvertime) {
-                        barClass = 'hours-progress-overtime';
-                    }
+          let barClass = 'hours-progress-normal';
+          if (overtimeHours > 20) {
+            barClass = 'hours-progress-warning';
+          } else if (isOvertime) {
+            barClass = 'hours-progress-overtime';
+          }
 
-                    return `
+          return `
             <div class="hours-progress-container">
               <div class="hours-progress-header">
                 <span class="hours-progress-name">${utils.escapeHtml(employee.name)}</span>
@@ -275,15 +275,15 @@
               </div>
             </div>
           `;
-                }).join('');
+        }).join('');
 
-            } catch (error) {
-                container.innerHTML = `<p class="text-error">Failed to load hours tracking: ${error.message}</p>`;
-            }
-        }
+      } catch (error) {
+        container.innerHTML = `<p class="text-error">Failed to load hours tracking: ${error.message}</p>`;
+      }
+    }
 
-        loadDashboard();
-    </script>
+    loadDashboard();
+  </script>
 </body>
 
 </html>

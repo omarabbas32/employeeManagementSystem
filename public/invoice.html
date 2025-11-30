@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فاتورة الموظف</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Lalezar&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Lalezar", sans-serif;
+
+        }
+
+        body {
+            font-size: 12px;
+            line-height: 1.3;
+            color: #000;
+            background: #fff;
+            padding: 0;
+            margin: 0;
+            direction: rtl;
+        }
+
+        .invoice-container {
+            width: 80mm;
+            max-width: 302px;
+            margin: 0 auto;
+            padding: 10px;
+            background: white;
+            direction: rtl;
+        }
+
+        /* Header Section */
+        .invoice-header {
+            text-align: center;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .invoice-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Employee Info */
+        .employee-info {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 11px;
+        }
+
+        .info-label {
+            font-weight: 600;
+        }
+
+        .info-value {
+            text-align: left;
+        }
+
+        /* Section Headers */
+        .section-header {
+            background: #000;
+            color: #fff;
+            padding: 5px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 12px;
+            margin: 10px 0 5px 0;
+        }
+
+        /* Data Rows */
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 11px;
+            border-bottom: 1px dotted #ddd;
+        }
+
+        .data-label {
+            font-weight: 500;
+        }
+
+        .data-value {
+            font-weight: 600;
+            text-align: left;
+        }
+
+        /* Deductions */
+        .deduction-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 11px;
+            border-bottom: 1px dotted #ddd;
+        }
+
+        .deduction-reason {
+            font-weight: 500;
+        }
+
+        .deduction-amount {
+            font-weight: 600;
+            color: #000000;
+            text-align: left;
+        }
+
+        /* Responsibilities */
+        .responsibility-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 11px;
+            border-bottom: 1px dotted #ddd;
+        }
+
+        .responsibility-title {
+            font-weight: 500;
+        }
+
+        .responsibility-price {
+            font-weight: 600;
+            color: #000000;
+            text-align: left;
+        }
+
+        /* Totals Section */
+        .totals-section {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px dashed #000;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 13px;
+            direction: rtl;
+        }
+
+        .total-row.final {
+            font-size: 15px;
+            font-weight: bold;
+            margin-top: 5px;
+            padding-top: 8px;
+            border-top: 2px solid #000;
+        }
+
+        /* Footer */
+        .invoice-footer {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 2px dashed #000;
+            text-align: center;
+            font-size: 10px;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            .invoice-container {
+                width: 80mm;
+                max-width: 80mm;
+                margin: 0;
+                padding: 5mm;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        /* Print Button */
+        .print-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 12px 24px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-family: "Lalezar", sans-serif;
+        }
+
+        .print-button:hover {
+            background: #1d4ed8;
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 14px;
+        }
+
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #dc2626;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <button class="print-button no-print" onclick="window.print()">🖨️ طباعة الفاتورة</button>
+
+    <div id="loading" class="loading">
+        جاري تحميل بيانات الفاتورة...
+    </div>
+
+    <div id="error" class="error" style="display: none;">
+        فشل تحميل بيانات الفاتورة. يرجى المحاولة مرة أخرى.
+    </div>
+
+    <div id="invoice" class="invoice-container" style="display: none;">
+        <!-- Header -->
+        <div class="invoice-header">
+            <div class="invoice-title">فاتورة الرواتب</div>
+        </div>
+
+        <!-- Employee Information -->
+        <div class="employee-info">
+            <div class="info-row">
+                <span class="info-label">الموظف:</span>
+                <span class="info-value" id="employee-name">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">الرقم:</span>
+                <span class="info-value" id="employee-id">-</span>
+            </div>
+            <!-- <div class="info-row">
+                <span class="info-label">الفترة:</span>
+                <span class="info-value" id="invoice-period">-</span>
+            </div> -->
+            <div class="info-row">
+                <span class="info-label">التاريخ:</span>
+                <span class="info-value" id="invoice-date">-</span>
+            </div>
+        </div>
+
+        <!-- Working Hours -->
+        <div class="section-header">ساعات العمل</div>
+        <div class="data-row">
+            <span class="data-label">الساعات العادية:</span>
+            <span class="data-value" id="regular-hours">0 ساعة</span>
+        </div>
+        <div class="data-row">
+            <span class="data-label">ساعات إضافية:</span>
+            <span class="data-value" id="overtime-hours">0 ساعة</span>
+        </div>
+        <div class="data-row">
+            <span class="data-label">إجمالي الساعات:</span>
+            <span class="data-value" id="total-hours">0 ساعة</span>
+        </div>
+
+        <!-- Tasks Completed -->
+        <div class="section-header"> المهام</div>
+        <div class="data-row">
+            <span class="data-label">المهام المكتملة:</span>
+            <span class="data-value" id="tasks-completed">0</span>
+        </div>
+        <div class="data-row">
+            <span class="data-label">أرباح المهام:</span>
+            <span class="data-value" id="task-earnings">0 جنيه</span>
+        </div>
+
+        <!-- Responsibilities -->
+        <div class="section-header">المسؤوليات</div>
+        <div id="responsibilities-list">
+            <div class="data-row">
+                <span class="data-label">لا توجد مسؤوليات</span>
+            </div>
+        </div>
+
+        <!-- Deductions -->
+        <div class="section-header">الخصومات</div>
+        <div id="deductions-list">
+            <div class="data-row">
+                <span class="data-label">لا توجد خصومات</span>
+            </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="totals-section">
+            <div class="total-row">
+                <span>إجمالي الراتب:</span>
+                <span id="gross-salary">0 جنيه</span>
+            </div>
+            <div class="total-row">
+                <span>إجمالي الخصومات:</span>
+                <span id="total-deductions">-0 جنيه</span>
+            </div>
+            <div class="total-row final">
+                <span>صافي الراتب:</span>
+                <span id="net-salary">0 جنيه</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="invoice-footer">
+            <div>شكراً لعملك الجاد!</div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const employeeId = urlParams.get('employeeId');
+        const month = urlParams.get('month');
+
+        const arabicMonths = [
+            'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+            'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+        ];
+
+        // Format currency in Egyptian Pounds (جنيه) - NO DECIMALS
+        function formatCurrency(amount) {
+            const formatted = new Intl.NumberFormat('ar-EG', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(Math.round(amount || 0));
+            return `${formatted} جنيه`;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) {
+                const now = new Date();
+                return `${arabicMonths[now.getMonth()]} ${now.getFullYear()}`;
+            }
+            const date = new Date(dateString + '-01');
+            return `${arabicMonths[date.getMonth()]} ${date.getFullYear()}`;
+        }
+
+        function formatArabicDate() {
+            const now = new Date();
+            const day = now.getDate();
+            const month = arabicMonths[now.getMonth()];
+            const year = now.getFullYear();
+            return `${day} ${month} ${year}`;
+        }
+
+        function validateInvoiceData(employee, salaryData, tasks, deductions, responsibilities) {
+            const errors = [];
+            if (!employee || !employee.name || !employee.id) errors.push('بيانات الموظف غير مكتملة');
+            if (!salaryData) errors.push('بيانات الراتب مفقودة');
+            else {
+                if (salaryData.grossSalary === undefined || salaryData.grossSalary === null) errors.push('إجمالي الراتب غير محدد');
+                if (salaryData.netSalary === undefined || salaryData.netSalary === null) errors.push('صافي الراتب غير محدد');
+            }
+            if (!Array.isArray(tasks)) errors.push('بيانات المهام غير صحيحة');
+            if (!Array.isArray(deductions)) errors.push('بيانات الخصومات غير صحيحة');
+            if (!Array.isArray(responsibilities)) errors.push('بيانات المسؤوليات غير صحيحة');
+            return errors;
+        }
+
+        async function loadInvoiceData() {
+            if (!employeeId || !month) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = 'معرف الموظف أو الشهر مفقود';
+                return;
+            }
+
+            try {
+                const [salaryData, employee, allTasks, allDeductions, allResponsibilities] = await Promise.all([
+                    api.getSalary(employeeId, { month: month }),
+                    api.getEmployee(employeeId),
+                    api.getTaskAssignments({ employeeId: employeeId }),
+                    api.getEmployeeDeductions(employeeId),
+                    api.getResponsibilities()
+                ]);
+
+                const completedTasks = allTasks.filter(t => {
+                    if (t.status !== 'Completed' && t.status !== 'Done') return false;
+                    if (t.completedAt) return t.completedAt.startsWith(month);
+                    if (t.updatedAt && (t.status === 'Completed' || t.status === 'Done')) return t.updatedAt.startsWith(month);
+                    return false;
+                });
+
+                let monthDeductions = [];
+                if (salaryData.deductions && salaryData.deductions.items) {
+                    monthDeductions = salaryData.deductions.items;
+                } else {
+                    monthDeductions = allDeductions;
+                }
+
+                // Filter responsibilities for this employee AND this month
+                const employeeResponsibilities = allResponsibilities.filter(r => {
+                    if (r.assignedEmployeeId != employeeId) return false;
+
+                    // Check if responsibility was assigned in the selected month
+                    if (r.createdAt) {
+                        return r.createdAt.startsWith(month);
+                    }
+
+                    // If no createdAt, check updatedAt
+                    if (r.updatedAt) {
+                        return r.updatedAt.startsWith(month);
+                    }
+
+                    // If no date info, include it (for backward compatibility)
+                    return true;
+                });
+
+                const validationErrors = validateInvoiceData(employee, salaryData, completedTasks, monthDeductions, employeeResponsibilities);
+                if (validationErrors.length > 0) throw new Error('أخطاء في التحقق من البيانات: ' + validationErrors.join(', '));
+
+                console.log('✓ Task Validation:', { actualCount: completedTasks.length, reportedCount: salaryData.tasks?.completedCount || 0 });
+                const calculatedDeductions = monthDeductions.reduce((sum, d) => sum + (d.amount || 0), 0);
+                console.log('✓ Deductions Validation:', { calculated: calculatedDeductions, reported: salaryData.deductions?.total || 0 });
+
+                populateInvoice(employee, salaryData, completedTasks, monthDeductions, employeeResponsibilities);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('invoice').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading invoice:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = 'فشل تحميل الفاتورة: ' + error.message;
+            }
+        }
+
+        function populateInvoice(employee, salaryData, tasks, deductions, responsibilities) {
+            document.getElementById('employee-name').textContent = employee.name || '-';
+            document.getElementById('employee-id').textContent = employee.id || '-';
+            // document.getElementById('invoice-period').textContent = formatDate(month);
+            document.getElementById('invoice-date').textContent = formatArabicDate();
+
+            const attendance = salaryData.attendance || {};
+            const totalHours = Math.round(attendance.totalHours || 0);
+            const overtimeHours = Math.round(attendance.overtimeHours || 0);
+            const regularHours = totalHours - overtimeHours;
+
+            document.getElementById('regular-hours').textContent = regularHours + ' ساعة';
+            document.getElementById('overtime-hours').textContent = overtimeHours + ' ساعة';
+            document.getElementById('total-hours').textContent = totalHours + ' ساعة';
+
+            const tasksCount = tasks.length;
+            const taskEarnings = salaryData.taskEarnings || salaryData.tasks?.totalEarnings || 0;
+
+            document.getElementById('tasks-completed').textContent = tasksCount;
+            document.getElementById('task-earnings').textContent = formatCurrency(taskEarnings);
+
+            const responsibilitiesList = document.getElementById('responsibilities-list');
+            if (responsibilities && responsibilities.length > 0) {
+                responsibilitiesList.innerHTML = responsibilities.map(r => `
+                    <div class="responsibility-item">
+                        <span class="responsibility-title">${r.title || r.name || 'مسؤولية'}</span>
+                        <span class="responsibility-price">+${formatCurrency(r.monthlyPrice || 0)}</span>
+                    </div>
+                `).join('');
+            } else {
+                responsibilitiesList.innerHTML = '<div class="data-row"><span class="data-label">لا توجد مسؤوليات</span></div>';
+            }
+
+            const deductionsList = document.getElementById('deductions-list');
+            if (deductions && deductions.length > 0) {
+                deductionsList.innerHTML = deductions.map(d => `
+                    <div class="deduction-item">
+                        <span class="deduction-reason">${d.reason || 'خصم'}</span>
+                        <span class="deduction-amount">-${formatCurrency(d.amount)}</span>
+                    </div>
+                `).join('');
+            } else {
+                deductionsList.innerHTML = '<div class="data-row"><span class="data-label">لا توجد خصومات</span></div>';
+            }
+
+            const grossSalary = salaryData.grossSalary || 0;
+            const totalDeductions = deductions.reduce((sum, d) => sum + (d.amount || 0), 0);
+            const netSalary = salaryData.netSalary || (grossSalary - totalDeductions);
+
+            document.getElementById('gross-salary').textContent = formatCurrency(grossSalary);
+            document.getElementById('total-deductions').textContent = '-' + formatCurrency(totalDeductions);
+            document.getElementById('net-salary').textContent = formatCurrency(netSalary);
+        }
+
+        loadInvoiceData();
+    </script>
+</body>
+
+</html>

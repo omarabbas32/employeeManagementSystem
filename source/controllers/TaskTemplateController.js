@@ -283,10 +283,16 @@ const updateAssignment = async (assignmentId, payload) => {
         dueDate: payload.dueDate ?? assignment.dueDate,
     };
 
-    // If status changed to Done, set completedAt
-    const completedAt = updates.status === 'Completed' && assignment.status !== 'Completed'
-        ? new Date().toISOString()
-        : assignment.completedAt;
+    // If status changed to Done/Completed, set completedAt and completedMonth
+    const dayjs = require('dayjs');
+    let completedAt = assignment.completedAt;
+    let completedMonth = assignment.completedMonth;
+
+    if ((updates.status === 'Completed' || updates.status === 'Done') &&
+        (assignment.status !== 'Completed' && assignment.status !== 'Done')) {
+        completedAt = new Date().toISOString();
+        completedMonth = dayjs().format('YYYY-MM');
+    }
 
     await runAsync(
         `UPDATE task_assignments SET 
@@ -294,9 +300,10 @@ const updateAssignment = async (assignmentId, payload) => {
       status = ?, 
       startDate = ?, 
       dueDate = ?,
-      completedAt = ?
+      completedAt = ?,
+      completedMonth = ?
      WHERE id = ?`,
-        [updates.assignedEmployeeId, updates.status, updates.startDate, updates.dueDate, completedAt, assignmentId]
+        [updates.assignedEmployeeId, updates.status, updates.startDate, updates.dueDate, completedAt, completedMonth, assignmentId]
     );
 
     const updated = await getAsync(

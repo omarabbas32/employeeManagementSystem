@@ -63,12 +63,12 @@ const utils = {
         return `${year}-${month}`;
     },
 
-    // Format currency
+    // Format currency (no decimals)
     formatCurrency(amount) {
         const formatted = new Intl.NumberFormat('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(amount || 0);
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(Math.round(amount || 0));
         return `${formatted} L.E`;
     },
 
@@ -129,6 +129,6 @@ const utils = {
         const outTotalMinutes = outHours * 60 + outMinutes;
 
         const diffMinutes = outTotalMinutes - inTotalMinutes;
-        return (diffMinutes / 60).toFixed(2);
+        return Math.round(diffMinutes / 60);
     }
 };

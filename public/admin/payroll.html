@@ -43,7 +43,7 @@
                     <div class="card-header">
                         <h3 class="card-title">Payroll Summary for <span id="selected-month"></span></h3>
                         <button class="btn btn-success" onclick="printPayroll()">
-                            🖨️ Print Invoice
+                            🖨️ Print Payroll
                         </button>
                     </div>
                     <div class="card-body">
@@ -119,7 +119,7 @@
                         // Fetch task assignments separately
                         const tasks = await api.getTaskAssignments({ employeeId: emp.employeeId });
                         const completedTasks = tasks.filter(t => t.status === 'Completed' || t.status === 'Done').length;
-                        
+
                         return {
                             salaryData,
                             tasksCompleted: completedTasks
@@ -164,7 +164,7 @@
             document.getElementById('total-deductions').textContent = utils.formatCurrency(totalDeductions);
             document.getElementById('total-net').textContent = utils.formatCurrency(totalNet);
 
-            // Render table with hours and overtime columns
+            // Render table with Print Invoice buttons
             const rows = payrollData.map(emp => ({
                 data: [
                     utils.escapeHtml(emp.employeeName),
@@ -176,13 +176,20 @@
                     utils.formatCurrency(emp.grossSalary),
                     utils.formatCurrency(emp.deductionsTotal || 0),
                     `<strong style="color: var(--success);">${utils.formatCurrency(emp.netSalary)}</strong>`
-                ]
+                ],
+                employeeId: emp.employeeId
             }));
 
             document.getElementById('payroll-table').innerHTML = createTable(
                 ['Employee', 'Hours', 'Overtime', 'Tasks', 'Gross', 'Deductions', 'Net Salary'],
-                rows
+                rows,
+                (row) => `<button class="btn btn-sm btn-primary" onclick="openInvoice(${row.employeeId})">🖨️ Print Invoice</button>`
             );
+        }
+
+        function openInvoice(employeeId) {
+            const invoiceUrl = `../invoice.html?employeeId=${employeeId}&month=${selectedMonth}`;
+            window.open(invoiceUrl, '_blank', 'width=400,height=800');
         }
 
         function printPayroll() {
