@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance - Employee - EMS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
 </head>
 
@@ -26,10 +27,10 @@
                 <div class="card-body">
                     <div class="flex gap-1 mb-2">
                         <button class="btn btn-success" onclick="promptCheckIn()">
-                            ✅ Check In
+                            Check In
                         </button>
-                        <button class="btn btn-danger" onclick="promptCheckOut()">
-                            🚪 Check Out
+                        <button class="btn btn-danger" onclick="promptCheckIn()">
+                           Check Out
                         </button>
                     </div>
 
@@ -252,7 +253,7 @@
                 showLoading();
                 await api.checkIn(user.id);
                 hideLoading();
-                showToast('✅ Checked in successfully!', 'success');
+                showToast('Checked in successfully!', 'success');
                 loadTodaySessions();
                 loadAttendance();
             } catch (error) {
@@ -267,7 +268,7 @@
                 showLoading();
                 await api.checkOut(user.id);
                 hideLoading();
-                showToast('🚪 Checked out successfully!', 'success');
+                showToast('Checked out successfully!', 'success');
                 loadTodaySessions();
                 loadAttendance();
             } catch (error) {

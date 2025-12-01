@@ -226,7 +226,7 @@
 </head>
 
 <body>
-    <button class="print-button no-print" onclick="window.print()">🖨️ طباعة الفاتورة</button>
+    <button class="print-button no-print" onclick="window.print()"><i class="fas fa-print"></i> طباعة الفاتورة</button>
 
     <div id="loading" class="loading">
         جاري تحميل بيانات الفاتورة...
@@ -252,10 +252,6 @@
                 <span class="info-label">الرقم:</span>
                 <span class="info-value" id="employee-id">-</span>
             </div>
-            <!-- <div class="info-row">
-                <span class="info-label">الفترة:</span>
-                <span class="info-value" id="invoice-period">-</span>
-            </div> -->
             <div class="info-row">
                 <span class="info-label">التاريخ:</span>
                 <span class="info-value" id="invoice-date">-</span>
@@ -408,22 +404,22 @@
                     monthDeductions = allDeductions;
                 }
 
-                // Filter responsibilities for this employee AND this month
+                // Filter responsibilities for this employee AND this month (FIXED)
                 const employeeResponsibilities = allResponsibilities.filter(r => {
                     if (r.assignedEmployeeId != employeeId) return false;
 
-                    // Check if responsibility was assigned in the selected month
+                    // Filter by month field (same as backend)
+                    if (r.month) {
+                        return r.month === month;
+                    }
+
+                    // Fallback for legacy data without month field
                     if (r.createdAt) {
                         return r.createdAt.startsWith(month);
                     }
 
-                    // If no createdAt, check updatedAt
-                    if (r.updatedAt) {
-                        return r.updatedAt.startsWith(month);
-                    }
-
-                    // If no date info, include it (for backward compatibility)
-                    return true;
+                    // If no date info, exclude it
+                    return false;
                 });
 
                 const validationErrors = validateInvoiceData(employee, salaryData, completedTasks, monthDeductions, employeeResponsibilities);
@@ -448,7 +444,6 @@
         function populateInvoice(employee, salaryData, tasks, deductions, responsibilities) {
             document.getElementById('employee-name').textContent = employee.name || '-';
             document.getElementById('employee-id').textContent = employee.id || '-';
-            // document.getElementById('invoice-period').textContent = formatDate(month);
             document.getElementById('invoice-date').textContent = formatArabicDate();
 
             const attendance = salaryData.attendance || {};

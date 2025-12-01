@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manager Dashboard - EMS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
 </head>
 
@@ -40,13 +41,13 @@
                 <div class="card-body">
                     <div class="grid grid-3 gap-2">
                         <a href="tasks.html" class="btn btn-primary">
-                            📋 Manage Tasks
+                            <i class="fas fa-tasks"></i> Manage Tasks
                         </a>
                         <a href="attendance.html" class="btn btn-primary">
-                            ⏰ Attendance
+                            <i class="fas fa-clock"></i> Attendance
                         </a>
                         <button class="btn btn-success" onclick="quickCheckIn()" id="checkin-btn">
-                            ✅ Quick Check-In
+                            <i class="fas fa-check-circle"></i> Quick Check-In
                         </button>
                     </div>
                 </div>
@@ -113,7 +114,7 @@
                 const todayAttendance = attendance.find(a => a.date === today);
 
                 if (todayAttendance && !todayAttendance.checkOut) {
-                    document.getElementById('checkin-btn').textContent = '🚪 Quick Check-Out';
+                    document.getElementById('checkin-btn').textContent = '<i class="fas fa-sign-out-alt"></i> Quick Check-Out';
                     document.getElementById('checkin-btn').onclick = quickCheckOut;
                     document.getElementById('checkin-btn').classList.remove('btn-success');
                     document.getElementById('checkin-btn').classList.add('btn-danger');

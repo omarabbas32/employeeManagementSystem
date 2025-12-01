@@ -86,7 +86,7 @@ function confirm(message, onConfirm, onCancel = null) {
   };
 }
 
-// Create sidebar navigation
+// Create sidebar navigation with mobile menu support
 function createSidebar(role, activePage = '') {
   const user = auth.getCurrentUser();
 
@@ -95,67 +95,75 @@ function createSidebar(role, activePage = '') {
   if (role === 'Admin') {
     navItems = `
       <a href="/public/admin/dashboard.html" class="nav-item ${activePage === 'dashboard' ? 'active' : ''}">
-        <i>📊</i> Dashboard
+        <i class="fas fa-chart-line"></i> Dashboard
       </a>
       <a href="/public/admin/employees.html" class="nav-item ${activePage === 'employees' ? 'active' : ''}">
-        <i>👥</i> Employees
+        <i class="fas fa-users"></i> Employees
       </a>
       <a href="/public/admin/types.html" class="nav-item ${activePage === 'types' ? 'active' : ''}">
-        <i>🏷️</i> Job Titles
+        <i class="fas fa-tag"></i> Job Titles
       </a>
       <a href="/public/admin/tasks.html" class="nav-item ${activePage === 'tasks' ? 'active' : ''}">
-        <i>📋</i> Tasks
+        <i class="fas fa-tasks"></i> Tasks
       </a>
       <a href="/public/admin/responsibilities.html" class="nav-item ${activePage === 'responsibilities' ? 'active' : ''}">
-        <i>⚡</i> Responsibilities
+        <i class="fas fa-bullseye"></i> Responsibilities
       </a>
       <a href="/public/admin/notes.html" class="nav-item ${activePage === 'notes' ? 'active' : ''}">
-        <i>📝</i> Notes
+        <i class="fas fa-sticky-note"></i> Notes
       </a>
       <a href="/public/admin/deductions.html" class="nav-item ${activePage === 'deductions' ? 'active' : ''}">
-        <i>💰</i> Deductions
+        <i class="fas fa-minus-circle"></i> Deductions
       </a>
       <a href="/public/admin/analytics.html" class="nav-item ${activePage === 'analytics' ? 'active' : ''}">
-        <i>📈</i> Analytics
+        <i class="fas fa-chart-bar"></i> Analytics
       </a>
       <a href="/public/admin/payroll.html" class="nav-item ${activePage === 'payroll' ? 'active' : ''}">
-        <i>💵</i> Payroll
+        <i class="fas fa-money-bill-wave"></i> Payroll
       </a>
       <a href="/public/admin/settings.html" class="nav-item ${activePage === 'settings' ? 'active' : ''}">
-        <i>⚙️</i> Settings
+        <i class="fas fa-cog"></i> Settings
       </a>
     `;
   } else if (role === 'Managerial') {
     navItems = `
       <a href="/public/manager/dashboard.html" class="nav-item ${activePage === 'dashboard' ? 'active' : ''}">
-        <i>📊</i> Dashboard
+        <i class="fas fa-chart-line"></i> Dashboard
       </a>
       <a href="/public/manager/tasks.html" class="nav-item ${activePage === 'tasks' ? 'active' : ''}">
-        <i>📋</i> Tasks
+        <i class="fas fa-tasks"></i> Tasks
       </a>
       <a href="/public/manager/responsibilities.html" class="nav-item ${activePage === 'responsibilities' ? 'active' : ''}">
-        <i>⚡</i> Responsibilities
+        <i class="fas fa-bullseye"></i> Responsibilities
       </a>
       <a href="/public/manager/attendance.html" class="nav-item ${activePage === 'attendance' ? 'active' : ''}">
-        <i>⏰</i> Attendance
+        <i class="fas fa-clock"></i> Attendance
       </a>
     `;
   } else {
     navItems = `
       <a href="/public/employee/dashboard.html" class="nav-item ${activePage === 'dashboard' ? 'active' : ''}">
-        <i>📊</i> Dashboard
+        <i class="fas fa-chart-line"></i> Dashboard
       </a>
       <a href="/public/employee/tasks.html" class="nav-item ${activePage === 'tasks' ? 'active' : ''}">
-        <i>📋</i> My Tasks
+        <i class="fas fa-tasks"></i> My Tasks
       </a>
       <a href="/public/employee/attendance.html" class="nav-item ${activePage === 'attendance' ? 'active' : ''}">
-        <i>⏰</i> Attendance
+        <i class="fas fa-clock"></i> Attendance
       </a>
     `;
   }
 
   return `
-    <div class="sidebar">
+    <button class="mobile-menu-toggle" id="mobile-menu-toggle" onclick="toggleMobileMenu()">
+      <div class="hamburger-icon">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </button>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileMenu()"></div>
+    <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <h2>EMS</h2>
         <p class="user-role">${user ? user.name : ''}</p>
@@ -166,12 +174,71 @@ function createSidebar(role, activePage = '') {
       </nav>
       <div class="sidebar-footer">
         <button class="btn btn-secondary" style="width: 100%;" onclick="auth.logout()">
-          <i>🚪</i> Logout
+          <i class="fas fa-sign-out-alt"></i> Logout
         </button>
       </div>
     </div>
   `;
 }
+
+// Mobile menu toggle functions
+function toggleMobileMenu() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const toggle = document.getElementById('mobile-menu-toggle');
+  const body = document.body;
+
+  if (sidebar && overlay && toggle) {
+    const isOpen = sidebar.classList.contains('mobile-open');
+
+    if (isOpen) {
+      closeMobileMenu();
+    } else {
+      openMobileMenu();
+    }
+  }
+}
+
+function openMobileMenu() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const toggle = document.getElementById('mobile-menu-toggle');
+  const body = document.body;
+
+  if (sidebar && overlay && toggle) {
+    sidebar.classList.add('mobile-open');
+    overlay.classList.add('active');
+    toggle.classList.add('active');
+    body.classList.add('sidebar-open');
+  }
+}
+
+function closeMobileMenu() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const toggle = document.getElementById('mobile-menu-toggle');
+  const body = document.body;
+
+  if (sidebar && overlay && toggle) {
+    sidebar.classList.remove('mobile-open');
+    overlay.classList.remove('active');
+    toggle.classList.remove('active');
+    body.classList.remove('sidebar-open');
+  }
+}
+
+// Auto-close mobile menu when clicking nav items
+document.addEventListener('DOMContentLoaded', function () {
+  // Add click event to all nav items to close mobile menu
+  setTimeout(() => {
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+      item.addEventListener('click', () => {
+        closeMobileMenu();
+      });
+    });
+  }, 100);
+});
 
 // Create page header
 function createPageHeader(title, subtitle = '') {

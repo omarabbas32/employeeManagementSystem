@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deductions - EMS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
 </head>
 
@@ -17,7 +18,7 @@
                 <div class="card-header">
                     <h1>Manage Deductions</h1>
                     <button class="btn btn-primary" onclick="openAddDeductionModal()">
-                        ➕ Add Deduction
+                        <i class="fas fa-plus"></i> Add Deduction
                     </button>
                 </div>
             </div>
@@ -55,7 +56,8 @@
                         <select name="employeeId" class="form-control" id="deduction-employee-select" required>
                             <option value="">-- Select Employee --</option>
                         </select>
-                        <small class="text-muted">⚠️ Deductions must be assigned to a specific employee</small>
+                        <small class="text-muted"><i class="fas fa-exclamation-triangle"></i> Deductions must be
+                            assigned to a specific employee</small>
                     </div>
                 </form>
             </div>

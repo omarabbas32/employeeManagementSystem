@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employee Dashboard - EMS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
     <style>
         .responsibility-badge {
@@ -50,13 +51,13 @@
                 <div class="card-body">
                     <div class="grid grid-3 gap-2">
                         <a href="tasks.html" class="btn btn-primary">
-                            📋 View My Tasks
+                            <i class="fas fa-tasks"></i> View My Tasks
                         </a>
                         <a href="attendance.html" class="btn btn-primary">
-                            ⏰ Attendance
+                            <i class="fas fa-clock"></i> Attendance
                         </a>
                         <button class="btn btn-success" onclick="quickCheckIn()" id="checkin-btn">
-                            ✅ Quick Check-In
+                            <i class="fas fa-check-circle"></i> Quick Check-In
                         </button>
                     </div>
                 </div>
@@ -82,7 +83,7 @@
 
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">🎯 My Responsibilities</h3>
+                    <h3 class="card-title"><i class="fas fa-bullseye"></i> My Responsibilities</h3>
                 </div>
                 <div class="card-body" id="responsibilities-section">
                     <p class="text-muted">Loading responsibilities...</p>
@@ -146,7 +147,7 @@
 
             if (!todayRecord) {
                 statusDiv.innerHTML = '<p class="text-muted">You have not checked in today</p>';
-                checkinBtn.textContent = '✅ Quick Check-In';
+                checkinBtn.innerHTML = '<i class="fas fa-check-circle"></i> Quick Check-In';
                 checkinBtn.onclick = quickCheckIn;
                 checkinBtn.classList.remove('btn-danger');
                 checkinBtn.classList.add('btn-success');
@@ -155,7 +156,7 @@
           <p><strong>Check-In:</strong> ${utils.formatTime(todayRecord.checkIn)}</p>
           <p class="text-success">You are currently checked in</p>
         `;
-                checkinBtn.textContent = '🚪 Quick Check-Out';
+                checkinBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Quick Check-Out';
                 checkinBtn.onclick = quickCheckOut;
                 checkinBtn.classList.remove('btn-success');
                 checkinBtn.classList.add('btn-danger');
@@ -180,7 +181,7 @@
 
             const rows = tasks.slice(0, 5).map(task => ({
                 data: [
-                    `📋 ${utils.escapeHtml(task.templateName || task.title || 'Untitled')}`,
+                    `<i class="fas fa-tasks"></i> ${utils.escapeHtml(task.templateName || task.title || 'Untitled')}`,
                     `<span class="badge ${utils.getStatusBadgeClass(task.status)}">${task.status}</span>`,
                     utils.formatDateReadable(task.createdAt)
                 ]
@@ -202,7 +203,7 @@
 
             const rows = responsibilities.map(resp => ({
                 data: [
-                    `🎯 ${utils.escapeHtml(resp.title || resp.name || 'Untitled')}`,
+                    `<i class="fas fa-bullseye"></i> ${utils.escapeHtml(resp.title || resp.name || 'Untitled')}`,
                     `<span class="responsibility-badge">${resp.status}</span>`,
                     utils.formatCurrency(resp.monthlyPrice || 0)
                 ]
