@@ -40,15 +40,15 @@
                 </div>
                 <div class="card-body">
                     <div class="grid grid-3 gap-2">
+                        <button class="btn btn-success" onclick="quickCheckIn()" id="checkin-btn">
+                            <i class="fas fa-check-circle"></i> Quick Check-In
+                        </button>
                         <a href="tasks.html" class="btn btn-primary">
                             <i class="fas fa-tasks"></i> Manage Tasks
                         </a>
                         <a href="attendance.html" class="btn btn-primary">
                             <i class="fas fa-clock"></i> Attendance
                         </a>
-                        <button class="btn btn-success" onclick="quickCheckIn()" id="checkin-btn">
-                            <i class="fas fa-check-circle"></i> Quick Check-In
-                        </button>
                     </div>
                 </div>
             </div>
@@ -111,13 +111,19 @@
 
                 // Update check-in button
                 const today = utils.formatDate(new Date());
-                const todayAttendance = attendance.find(a => a.date === today);
+                const todayAttendance = attendance.find(a => a.date === today && !a.checkOut);
 
-                if (todayAttendance && !todayAttendance.checkOut) {
-                    document.getElementById('checkin-btn').textContent = '<i class="fas fa-sign-out-alt"></i> Quick Check-Out';
+                if (todayAttendance) {
+                    document.getElementById('checkin-btn').innerHTML = 'Quick Check-Out';
                     document.getElementById('checkin-btn').onclick = quickCheckOut;
                     document.getElementById('checkin-btn').classList.remove('btn-success');
                     document.getElementById('checkin-btn').classList.add('btn-danger');
+                } else {
+                    const btn = document.getElementById('checkin-btn');
+                    btn.innerHTML = '<i class="fas fa-check-circle"></i> Quick Check-In';
+                    btn.onclick = quickCheckIn;
+                    btn.classList.remove('btn-danger');
+                    btn.classList.add('btn-success');
                 }
 
                 hideLoading();
