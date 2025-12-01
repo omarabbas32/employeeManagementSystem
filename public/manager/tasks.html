@@ -370,7 +370,7 @@
 
             const rows = filteredAssignments.map(assignment => {
                 const employee = employees.find(e => e.id === assignment.assignedEmployeeId);
-                const taskName = assignment.name || assignment.title || '-';
+                const taskName = assignment.name || assignment.templateName || '-';
                 
                 return {
                     data: [

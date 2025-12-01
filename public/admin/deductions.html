@@ -145,14 +145,13 @@
             }
 
             const rows = deductions.map(deduction => {
-                const employee = deduction.employeeId ? employees.find(e => e.id === deduction.employeeId) : null;
                 const valueDisplay = utils.formatCurrency(deduction.value) + ' EGP';
 
                 return {
                     data: [
                         utils.escapeHtml(deduction.name),
                         valueDisplay,
-                        employee ? utils.escapeHtml(employee.name) : '<span class="text-muted">—</span>',
+                        deduction.employeeName ? utils.escapeHtml(deduction.employeeName) : '<span class="text-muted">—</span>',
                         utils.formatDateReadable(deduction.createdAt)
                     ],
                     id: deduction.id,
@@ -165,9 +164,7 @@
           ${createTable(
                 ['Name', 'Amount', 'Employee', 'Created'],
                 rows,
-                (row) => `
-              <button class="btn btn-sm btn-secondary" onclick="openEditDeductionModal(${row.id})">Edit</button>
-              <button class="btn btn-sm btn-danger" onclick="deleteDeduction(${row.id})">Delete</button>
+                (row) => `              <button class="btn btn-sm btn-danger" onclick="deleteDeduction(${row.id})">Delete</button>
             `
             )}
         </div>
