@@ -26,7 +26,8 @@
                     <button id="tab-templates-btn" class="tab-button active" onclick="switchTab('templates')">
                         <i class="fas fa-tasks"></i> Task Templates
                     </button>
-                    <button id="tab-assignments-btn" class="tab-button" onclick="switchTab('assignments')">
+                    <button style="margin-left: 4%;" id="tab-assignments-btn" class="tab-button"
+                        onclick="switchTab('assignments')">
                         <i class="fas fa-check-circle"></i> Task Assignments
                     </button>
                 </div>
@@ -370,8 +371,9 @@
 
             const rows = filteredAssignments.map(assignment => {
                 const employee = employees.find(e => e.id === assignment.assignedEmployeeId);
-                const taskName = assignment.name || assignment.templateName || '-';
-                
+
+                const taskName = assignment.templateName || assignment.name || assignment.title || '-';
+
                 return {
                     data: [
                         utils.escapeHtml(taskName),
@@ -405,7 +407,7 @@
             const employeeFilter = document.getElementById('assignment-employee-filter').value;
 
             filteredAssignments = assignments.filter(assignment => {
-                const taskName = assignment.name || assignment.title || '';
+                const taskName = assignment.templateName || assignment.name || assignment.title || '';
                 const matchesSearch = taskName.toLowerCase().includes(searchQuery);
                 const matchesStatus = !statusFilter || assignment.status === statusFilter;
                 const matchesEmployee = !employeeFilter || assignment.assignedEmployeeId == employeeFilter;
@@ -426,7 +428,7 @@
 
             const form = document.getElementById('manage-assignment-form');
             form.elements.assignmentId.value = assignment.id;
-            form.elements.templateName.value = assignment.name || assignment.title || '-';
+            form.elements.templateName.value = assignment.templateName || assignment.name || assignment.title || '-';
             form.elements.assignedEmployeeId.value = assignment.assignedEmployeeId;
             form.elements.status.value = assignment.status;
 

@@ -121,9 +121,6 @@ function createSidebar(role, activePage = '') {
       <a href="/public/admin/payroll.html" class="nav-item ${activePage === 'payroll' ? 'active' : ''}">
         <i class="fas fa-money-bill-wave"></i> Payroll
       </a>
-      <a href="/public/admin/settings.html" class="nav-item ${activePage === 'settings' ? 'active' : ''}">
-        <i class="fas fa-cog"></i> Settings
-      </a>
     `;
   } else if (role === 'Managerial') {
     navItems = `

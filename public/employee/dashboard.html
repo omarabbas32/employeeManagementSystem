@@ -7,16 +7,6 @@
     <title>Employee Dashboard - EMS</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
-    <style>
-        .responsibility-badge {
-            background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-    </style>
 </head>
 
 <body>
@@ -31,16 +21,16 @@
 
             <div class="grid grid-3">
                 <div class="stat-card">
-                    <h3 id="total-tasks">0</h3>
-                    <p>Total Tasks</p>
-                </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
                     <h3 id="pending-tasks">0</h3>
                     <p>Pending Tasks</p>
                 </div>
                 <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
                     <h3 id="completed-tasks">0</h3>
                     <p>Completed Tasks</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                    <h3 id="total-hours">0</h3>
+                    <p>Hours This Month</p>
                 </div>
             </div>
 
@@ -50,43 +40,25 @@
                 </div>
                 <div class="card-body">
                     <div class="grid grid-3 gap-2">
+                        <button class="btn btn-success" onclick="quickCheckIn()" id="checkin-btn">
+                            <i class="fas fa-check-circle"></i> Quick Check-In
+                        </button>
                         <a href="tasks.html" class="btn btn-primary">
-                            <i class="fas fa-tasks"></i> View My Tasks
+                            <i class="fas fa-tasks"></i> My Tasks
                         </a>
                         <a href="attendance.html" class="btn btn-primary">
                             <i class="fas fa-clock"></i> Attendance
                         </a>
-                        <button class="btn btn-success" onclick="quickCheckIn()" id="checkin-btn">
-                            <i class="fas fa-check-circle"></i> Quick Check-In
-                        </button>
                     </div>
                 </div>
             </div>
 
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Today's Status</h3>
-                </div>
-                <div class="card-body" id="today-status">
-                    <p class="text-muted">Loading...</p>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Recent Tasks</h3>
+                    <h3 class="card-title">My Recent Tasks</h3>
                 </div>
                 <div class="card-body" id="recent-tasks">
                     <p class="text-muted">Loading tasks...</p>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-bullseye"></i> My Responsibilities</h3>
-                </div>
-                <div class="card-body" id="responsibilities-section">
-                    <p class="text-muted">Loading responsibilities...</p>
                 </div>
             </div>
         </div>
@@ -100,39 +72,48 @@
         if (!auth.init()) throw new Error('Unauthorized');
 
         const user = auth.getCurrentUser();
-        document.getElementById('sidebar-container').innerHTML = createSidebar(user.employeeType, 'dashboard');
+        const role = user.employeeType || 'Employee';
+        document.getElementById('sidebar-container').innerHTML = createSidebar(role, 'dashboard');
         document.getElementById('employee-name').textContent = user.name;
 
         async function loadDashboard() {
             try {
                 showLoading();
 
-                const [tasks, responsibilities, attendance] = await Promise.all([
+                const [tasks, attendance, monthlyTotal] = await Promise.all([
                     api.getTaskAssignments({ employeeId: user.id }),
-                    api.getResponsibilities({ employeeId: user.id }),
-                    api.getAttendance(user.id, { month: utils.getCurrentMonth() })
+                    api.getAttendance(user.id, { month: utils.getCurrentMonth() }),
+                    api.getMonthlyTotal(user.id, { month: utils.getCurrentMonth() })
                 ]);
 
                 // Calculate stats
-                const totalTasks = tasks.length;
                 const pendingTasks = tasks.filter(t => t.status === 'Pending' || t.status === 'In Progress').length;
                 const completedTasks = tasks.filter(t => t.status === 'Done').length;
+                const totalHours = monthlyTotal.totalHours || 0;
 
-                document.getElementById('total-tasks').textContent = totalTasks;
                 document.getElementById('pending-tasks').textContent = pendingTasks;
                 document.getElementById('completed-tasks').textContent = completedTasks;
+                document.getElementById('total-hours').textContent = totalHours.toFixed(1);
 
-                // Show today's status
-                const today = utils.formatDate(new Date());
-                const todayAttendance = attendance.find(a => a.date === today);
-
-                updateTodayStatus(todayAttendance);
-
-                // Show recent tasks
                 renderRecentTasks(tasks);
 
-                // Show responsibilities
-                renderResponsibilities(responsibilities);
+                // Update check-in button
+                const today = utils.formatDate(new Date());
+                const todayAttendance = attendance.find(a => a.date === today && !a.checkOut);
+
+                if (todayAttendance) {
+                    const btn = document.getElementById('checkin-btn');
+                    btn.innerHTML = 'Quick Check-Out';
+                    btn.onclick = quickCheckOut;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-danger');
+                } else {
+                    const btn = document.getElementById('checkin-btn');
+                    btn.innerHTML = '<i class="fas fa-check-circle"></i> Quick Check-In';
+                    btn.onclick = quickCheckIn;
+                    btn.classList.remove('btn-danger');
+                    btn.classList.add('btn-success');
+                }
 
                 hideLoading();
             } catch (error) {
@@ -141,76 +122,27 @@
             }
         }
 
-        function updateTodayStatus(todayRecord) {
-            const statusDiv = document.getElementById('today-status');
-            const checkinBtn = document.getElementById('checkin-btn');
-
-            if (!todayRecord) {
-                statusDiv.innerHTML = '<p class="text-muted">You have not checked in today</p>';
-                checkinBtn.innerHTML = '<i class="fas fa-check-circle"></i> Quick Check-In';
-                checkinBtn.onclick = quickCheckIn;
-                checkinBtn.classList.remove('btn-danger');
-                checkinBtn.classList.add('btn-success');
-            } else if (!todayRecord.checkOut) {
-                statusDiv.innerHTML = `
-          <p><strong>Check-In:</strong> ${utils.formatTime(todayRecord.checkIn)}</p>
-          <p class="text-success">You are currently checked in</p>
-        `;
-                checkinBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Quick Check-Out';
-                checkinBtn.onclick = quickCheckOut;
-                checkinBtn.classList.remove('btn-success');
-                checkinBtn.classList.add('btn-danger');
-            } else {
-                statusDiv.innerHTML = `
-          <p><strong>Check-In:</strong> ${utils.formatTime(todayRecord.checkIn)}</p>
-          <p><strong>Check-Out:</strong> ${utils.formatTime(todayRecord.checkOut)}</p>
-          <p><strong>Total Hours:</strong> ${todayRecord.totalHours.toFixed(2)}</p>
-          <p class="text-success">Attendance completed for today</p>
-        `;
-                checkinBtn.disabled = true;
-            }
-        }
-
         function renderRecentTasks(tasks) {
             const container = document.getElementById('recent-tasks');
 
             if (tasks.length === 0) {
-                container.innerHTML = '<p class="text-muted">No tasks assigned</p>';
+                container.innerHTML = '<p class="text-muted">No tasks assigned to you</p>';
                 return;
             }
 
-            const rows = tasks.slice(0, 5).map(task => ({
-                data: [
-                    `<i class="fas fa-tasks"></i> ${utils.escapeHtml(task.templateName || task.title || 'Untitled')}`,
-                    `<span class="badge ${utils.getStatusBadgeClass(task.status)}">${task.status}</span>`,
-                    utils.formatDateReadable(task.createdAt)
-                ]
-            }));
+            const rows = tasks.slice(0, 5).map(task => {
+                const taskName = task.name || task.title || task.templateName || '-';
+                return {
+                    data: [
+                        utils.escapeHtml(taskName),
+                        `<span class="badge ${utils.getStatusBadgeClass(task.status)}">${task.status}</span>`,
+                        utils.formatDateReadable(task.createdAt)
+                    ]
+                };
+            });
 
             container.innerHTML = createTable(
-                ['Task', 'Status', 'Created'],
-                rows
-            );
-        }
-
-        function renderResponsibilities(responsibilities) {
-            const container = document.getElementById('responsibilities-section');
-
-            if (responsibilities.length === 0) {
-                container.innerHTML = '<p class="text-muted">No responsibilities assigned</p>';
-                return;
-            }
-
-            const rows = responsibilities.map(resp => ({
-                data: [
-                    `<i class="fas fa-bullseye"></i> ${utils.escapeHtml(resp.title || resp.name || 'Untitled')}`,
-                    `<span class="responsibility-badge">${resp.status}</span>`,
-                    utils.formatCurrency(resp.monthlyPrice || 0)
-                ]
-            }));
-
-            container.innerHTML = createTable(
-                ['Responsibility', 'Status', 'Monthly Price'],
+                ['Task', 'Status', 'Assigned Date'],
                 rows
             );
         }

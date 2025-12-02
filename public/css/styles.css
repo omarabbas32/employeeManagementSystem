@@ -22,7 +22,7 @@
 
     --success-500: #10b981;
     --warning-500: #f59e0b;
-    --error-500: #ef4444;
+    --error-500: #d72828ff;
 
     --space-1: 0.5rem;
     --space-2: 1rem;
@@ -329,11 +329,12 @@ a:hover {
 .btn-secondary {
     background: var(--gray-50);
     color: var(--gray-700);
-    border-color: var(--gray-300);
+    border-color: var(--gray-700);
 }
 
 .btn-secondary:hover {
-    background: var(--gray-100);
+    color: white;
+    background: var(--gray-700);
     border-color: var(--gray-500);
     transform: translateY(-1px);
 }
@@ -346,6 +347,7 @@ a:hover {
 .btn-danger {
     background-color: var(--error-500);
     color: white;
+    margin-left: 2%;
 }
 
 .btn-outline {
@@ -863,6 +865,15 @@ tbody tr:hover {
     .btn+.btn {
         margin-left: 0;
         margin-top: var(--space-2);
+    }
+
+
+
+    .btn-success {
+        margin-top: var(--space-2);
+
+        height: 2%;
+        width: 2%;
     }
 
     .modal-footer {

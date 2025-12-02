@@ -5,7 +5,7 @@ const formatDate = (inputDate) => (inputDate ? dayjs(inputDate).format('YYYY-MM-
 
 const checkAttendanceCode = async (code) => {
   const settings = await getAsync(`SELECT currentAttendanceCode FROM admin_settings WHERE id = 1`);
-//here 
+  //here 
   if (!settings || !settings.currentAttendanceCode) {
     const error = new Error('Attendance code not configured. Please contact admin.');
     error.status = 400;
@@ -63,30 +63,34 @@ const checkOut = async ({ employeeId, code, timestamp, date }) => {
 
   const day = formatDate(date);
 
-  // Find the LATEST check-in without a check-out for this employee today
-  const attendance = await getAsync(
+  // Find ALL active check-ins for this employee today
+  const activeSessions = await allAsync(
     `SELECT * FROM attendance 
-     WHERE employeeId = ? AND date = ? AND checkOutTime IS NULL 
-     ORDER BY checkInTime DESC LIMIT 1`,
+     WHERE employeeId = ? AND date = ? AND checkOutTime IS NULL`,
     [employeeId, day]
   );
 
-  if (!attendance || !attendance.checkInTime) {
+  if (!activeSessions || activeSessions.length === 0) {
     const error = new Error('No active check-in found. Please check in first.');
     error.status = 404;
     throw error;
   }
 
   const checkOutTime = timestamp || dayjs().toISOString();
-  const duration = dayjs(checkOutTime).diff(dayjs(attendance.checkInTime), 'minute') / 60;
-  const dailyHours = Math.max(0, Number(duration.toFixed(2)));
 
-  await runAsync(
-    `UPDATE attendance SET checkOutTime = ?, dailyHours = ? WHERE id = ?`,
-    [checkOutTime, dailyHours, attendance.id]
-  );
+  // Close ALL active sessions
+  for (const session of activeSessions) {
+    const duration = dayjs(checkOutTime).diff(dayjs(session.checkInTime), 'minute') / 60;
+    const dailyHours = Math.max(0, Number(duration.toFixed(2)));
 
-  const updated = await getAsync(`SELECT * FROM attendance WHERE id = ?`, [attendance.id]);
+    await runAsync(
+      `UPDATE attendance SET checkOutTime = ?, dailyHours = ? WHERE id = ?`,
+      [checkOutTime, dailyHours, session.id]
+    );
+  }
+
+  // Return the last updated record
+  const updated = await getAsync(`SELECT * FROM attendance WHERE id = ?`, [activeSessions[0].id]);
   return formatAttendanceRecord(updated);
 };
 
