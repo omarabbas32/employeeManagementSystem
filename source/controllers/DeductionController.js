@@ -28,6 +28,7 @@ const listDeductions = async (requestingUser, month = null) => {
     ...d,
     value: d.amount,
     employeeId: d.applyToEmployeeId,
+    hoursDeducted: d.hours_deducted,
     createdAt: d.createdAt || new Date().toISOString()
   }));
 };
@@ -38,6 +39,7 @@ const createDeduction = async (payload) => {
   const name = payload.name;
   const amount = payload.value !== undefined ? payload.value : payload.amount;
   const applyToEmployeeId = payload.employeeId !== undefined ? payload.employeeId : payload.applyToEmployeeId;
+  const hoursDeducted = payload.hoursDeducted !== undefined ? payload.hoursDeducted : payload.hours_deducted;
   const isActive = payload.isActive !== undefined ? payload.isActive : 1;
   const month = payload.month || dayjs().format('YYYY-MM');
 
@@ -59,16 +61,17 @@ const createDeduction = async (payload) => {
   const type = 'fixed';
 
   const result = await runAsync(
-    `INSERT INTO deduction_rules (name, type, amount, applyToEmployeeId, isActive, month)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [name, type, amount, applyToEmployeeId || null, isActive ? 1 : 0, month]
+    `INSERT INTO deduction_rules (name, type, amount, applyToEmployeeId, isActive, month, hours_deducted)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [name, type, amount, applyToEmployeeId || null, isActive ? 1 : 0, month, hoursDeducted || null]
   );
 
   const deduction = await getAsync(`SELECT * FROM deduction_rules WHERE id = ?`, [result.lastID]);
   return {
     ...deduction,
     value: deduction.amount,
-    employeeId: deduction.applyToEmployeeId
+    employeeId: deduction.applyToEmployeeId,
+    hoursDeducted: deduction.hours_deducted
   };
 };
 
@@ -85,6 +88,7 @@ const updateDeduction = async (id, payload) => {
     type: 'fixed', // ALWAYS fixed
     amount: (payload.value !== undefined ? payload.value : payload.amount) ?? rule.amount,
     applyToEmployeeId: (payload.employeeId !== undefined ? payload.employeeId : payload.applyToEmployeeId) ?? rule.applyToEmployeeId,
+    hoursDeducted: (payload.hoursDeducted !== undefined ? payload.hoursDeducted : payload.hours_deducted) ?? rule.hours_deducted,
     isActive: payload.isActive ?? rule.isActive,
   };
 
@@ -98,16 +102,17 @@ const updateDeduction = async (id, payload) => {
 
   await runAsync(
     `UPDATE deduction_rules
-     SET name = ?, type = ?, amount = ?, applyToEmployeeId = ?, isActive = ?
+     SET name = ?, type = ?, amount = ?, applyToEmployeeId = ?, isActive = ?, hours_deducted = ?
      WHERE id = ?`,
-    [updated.name, updated.type, updated.amount, updated.applyToEmployeeId || null, updated.isActive ? 1 : 0, id]
+    [updated.name, updated.type, updated.amount, updated.applyToEmployeeId || null, updated.isActive ? 1 : 0, updated.hoursDeducted || null, id]
   );
 
   const updatedRule = await getAsync(`SELECT * FROM deduction_rules WHERE id = ?`, [id]);
   return {
     ...updatedRule,
     value: updatedRule.amount,
-    employeeId: updatedRule.applyToEmployeeId
+    employeeId: updatedRule.applyToEmployeeId,
+    hoursDeducted: updatedRule.hours_deducted
   };
 };
 
@@ -161,6 +166,7 @@ const getEmployeeDeductions = async (employeeId, month = null) => {
     ...d,
     value: d.amount,
     employeeId: d.applyToEmployeeId,
+    hoursDeducted: d.hours_deducted,
     isCompanyWide: d.applyToEmployeeId === null
   }));
 };

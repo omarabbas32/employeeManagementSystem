@@ -263,9 +263,14 @@ const initDatabase = async () => {
       AND completedMonth IS NULL
   `);
 
+  // ========== HOUR-BASED DEDUCTION FEATURE ==========
+  // Add hours_deducted column to support hour-based deductions
+  await ensureColumn('deduction_rules', 'hours_deducted', 'REAL DEFAULT NULL');
+
   console.log('✅ Database initialized successfully');
   console.log('✅ Multiple check-ins per day enabled');
   console.log('✅ Monthly payroll system enabled');
+  console.log('✅ Hour-based deduction feature enabled');
 };
 
 module.exports = {

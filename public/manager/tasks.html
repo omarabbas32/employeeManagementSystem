@@ -403,12 +403,16 @@
                 const matchesSearch = taskName.toLowerCase().includes(searchQuery);
                 const matchesStatus = !statusFilter || assignment.status === statusFilter;
                 const matchesEmployee = !employeeFilter || assignment.assignedEmployeeId == employeeFilter;
-                
+
                 // Check due date filter
                 let matchesDueDate = true;
-                if (dueDateFilter && assignment.dueDate) {
-                    const assignmentDueDate = assignment.dueDate.split('T')[0];
-                    matchesDueDate = assignmentDueDate === dueDateFilter;
+                if (dueDateFilter) {
+                    if (assignment.dueDate) {
+                        const assignmentDueDate = assignment.dueDate.split('T')[0];
+                        matchesDueDate = assignmentDueDate === dueDateFilter;
+                    } else {
+                        matchesDueDate = false;
+                    }
                 }
 
                 return matchesSearch && matchesStatus && matchesEmployee && matchesDueDate;

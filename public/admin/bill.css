@@ -1,0 +1,111 @@
+
+* { font-family: lalezar;
+  font-weight: 300;
+  
+    }
+body {
+  background-image: url(img/5.jpg );
+  font-family: Arial, sans-serif;
+  direction: rtl;
+  margin: 0;
+  padding: 0;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed;
+  width: 80mm;
+  height: auto;  
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+.invoice-container {
+   width: 100%;
+   margin: auto;
+    padding: 20px;
+     text-align: center; }
+
+.invoice-details, .invoice-recipient, .invoice-total { margin-top: 20px;
+   text-align: right;
+    margin-right: 10px;
+    font-size: 12px;
+    margin: auto;
+
+   }
+
+@media print {
+  button {
+    display: none;
+  }
+  table {
+    border: 3px solid #000000;
+    
+  }
+}
+
+h3{
+  font-size: 18px;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  margin-left: 15%;
+  text-align: center;
+}
+
+h4{
+  font-size: 12px;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  margin-left: 15%;
+  text-align: center;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  
+
+}
+  
+img {
+  margin: auto;
+  height: 40px;
+  width: 150px;
+  margin-left: 15%;
+}
+#logo {
+  margin-left: 20%;
+  height: 90%;
+  width: 90%;
+  margin-top: -5%;
+}
+#logo2 {
+
+  margin-right: 5%;
+  height: 85%;
+  width: 85%;
+  margin-top: 2%;
+  margin-left: 30%;
+  
+}
+th {
+  
+  border: 3px solid #000000;
+  border-radius: 150px;
+}
+
+button{
+  background-color: blue;
+  color: rgb(255, 255, 255);
+  padding: 10px;
+  border-radius: 25px;
+  font-size: 20px;
+} 
+
+button:hover {
+
+  background-color: orangered;
+}

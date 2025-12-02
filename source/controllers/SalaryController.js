@@ -53,22 +53,30 @@ const calculateTaskPayment = (tasks, employeeFactor, overtimeBonus, allowTaskOve
 const calculateResponsibilityPayment = (responsibilities, employeeFactor) =>
   sum(responsibilities.map((resp) => (resp.monthlyPrice || 0) * (resp.factor || employeeFactor)));
 
-const applyDeductions = (deductions, gross) => {
+const applyDeductions = (deductions, gross, employeeHourlyRate) => {
   let total = 0;
   const details = [];
 
   deductions.forEach((rule) => {
     let amount = 0;
-    if (rule.type === 'percentage') {
+    let hoursDeducted = null;
+
+    // Check if this is a hour-based deduction
+    if (rule.hours_deducted != null && rule.hours_deducted > 0) {
+      hoursDeducted = rule.hours_deducted;
+      amount = hoursDeducted * (employeeHourlyRate || 0);
+    } else if (rule.type === 'percentage') {
       amount = (rule.amount / 100) * gross;
     } else {
       amount = rule.amount;
     }
+
     total += amount;
     details.push({
       name: rule.name,
       type: rule.type,
       value: rule.amount,
+      hoursDeducted: hoursDeducted,
       calculatedAmount: amount
     });
   });
@@ -97,7 +105,7 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
   // COMPLETE CALCULATION: Net Salary = Base + Hours Pay + Task Earnings + Responsibility Earnings - Deductions
 
   // Use employee-specific hourly rate, fallback to global settings if not set
-  const hourlyRate = employee.hourlyRate || settings?.normalHourRate || 15;
+  const hourlyRate = employee.normalHourRate || settings?.normalHourRate || 15;
 
   // Calculate working hours payment (all hours paid at same rate)
   const workingHoursPay = totalHours * hourlyRate;
@@ -115,7 +123,7 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
   const baseSalary = employee.baseSalary || 0;
   const grossSalary = baseSalary + workingHoursPay + taskEarnings + responsibilityEarnings;
 
-  const deductionResult = applyDeductions(deductions, grossSalary);
+  const deductionResult = applyDeductions(deductions, grossSalary, hourlyRate);
   const netSalary = grossSalary - deductionResult.total;
 
   // Return structure that matches frontend expectations

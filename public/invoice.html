@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 
 <head>
@@ -17,13 +17,16 @@
         }
 
         body {
+            background-image: url(admin/assets/5.jpg);
             font-size: 12px;
             line-height: 1.3;
             color: #000;
-            background: #fff;
-            padding: 0;
-            margin: 0;
-            direction: rtl;
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-attachment: fixed;
+            height: auto;
+            box-sizing: border-box;
         }
 
         .invoice-container {
@@ -31,7 +34,7 @@
             max-width: 302px;
             margin: 0 auto;
             padding: 10px;
-            background: white;
+            background: transparent;
             direction: rtl;
         }
 
@@ -96,44 +99,6 @@
 
         .data-value {
             font-weight: 600;
-            text-align: left;
-        }
-
-        /* Deductions */
-        .deduction-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 3px 0;
-            font-size: 11px;
-            border-bottom: 1px dotted #ddd;
-        }
-
-        .deduction-reason {
-            font-weight: 500;
-        }
-
-        .deduction-amount {
-            font-weight: 600;
-            color: #000000;
-            text-align: left;
-        }
-
-        /* Responsibilities */
-        .responsibility-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 3px 0;
-            font-size: 11px;
-            border-bottom: 1px dotted #ddd;
-        }
-
-        .responsibility-title {
-            font-weight: 500;
-        }
-
-        .responsibility-price {
-            font-weight: 600;
-            color: #000000;
             text-align: left;
         }
 
@@ -273,18 +238,15 @@
             <span class="data-value" id="total-hours">0 ساعة</span>
         </div>
 
-        <!-- Tasks Completed -->
-        <div class="section-header"> المهام</div>
-        <div class="data-row">
-            <span class="data-label">المهام المكتملة:</span>
-            <span class="data-value" id="tasks-completed">0</span>
-        </div>
-        <div class="data-row">
-            <span class="data-label">أرباح المهام:</span>
-            <span class="data-value" id="task-earnings">0 جنيه</span>
+        <!-- Tasks Count (NOT list) -->
+        <div class="section-header">المهام</div>
+        <div id="tasks-list">
+            <div class="data-row">
+                <span class="data-label">لا توجد مهام</span>
+            </div>
         </div>
 
-        <!-- Responsibilities -->
+        <!-- Responsibilities Count (NOT list) -->
         <div class="section-header">المسؤوليات</div>
         <div id="responsibilities-list">
             <div class="data-row">
@@ -292,7 +254,7 @@
             </div>
         </div>
 
-        <!-- Deductions -->
+        <!-- Deductions Count (NOT list) -->
         <div class="section-header">الخصومات</div>
         <div id="deductions-list">
             <div class="data-row">
@@ -300,16 +262,8 @@
             </div>
         </div>
 
-        <!-- Totals -->
+        <!-- Totals (ONLY Net Salary) -->
         <div class="totals-section">
-            <div class="total-row">
-                <span>إجمالي الراتب:</span>
-                <span id="gross-salary">0 جنيه</span>
-            </div>
-            <div class="total-row">
-                <span>إجمالي الخصومات:</span>
-                <span id="total-deductions">-0 جنيه</span>
-            </div>
             <div class="total-row final">
                 <span>صافي الراتب:</span>
                 <span id="net-salary">0 جنيه</span>
@@ -364,7 +318,6 @@
             if (!employee || !employee.name || !employee.id) errors.push('بيانات الموظف غير مكتملة');
             if (!salaryData) errors.push('بيانات الراتب مفقودة');
             else {
-                if (salaryData.grossSalary === undefined || salaryData.grossSalary === null) errors.push('إجمالي الراتب غير محدد');
                 if (salaryData.netSalary === undefined || salaryData.netSalary === null) errors.push('صافي الراتب غير محدد');
             }
             if (!Array.isArray(tasks)) errors.push('بيانات المهام غير صحيحة');
@@ -390,6 +343,7 @@
                     api.getResponsibilities()
                 ]);
 
+                // Filter tasks for current month only
                 const completedTasks = allTasks.filter(t => {
                     if (t.status !== 'Completed' && t.status !== 'Done') return false;
                     if (t.completedAt) return t.completedAt.startsWith(month);
@@ -397,37 +351,24 @@
                     return false;
                 });
 
+                // Filter deductions for current month
                 let monthDeductions = [];
-                if (salaryData.deductions && salaryData.deductions.items) {
-                    monthDeductions = salaryData.deductions.items;
-                } else {
-                    monthDeductions = allDeductions;
+                if (salaryData.deductions && salaryData.deductions.details) {
+                    monthDeductions = salaryData.deductions.details;
+                } else if (allDeductions) {
+                    monthDeductions = allDeductions.filter(d => !d.month || d.month === month);
                 }
 
-                // Filter responsibilities for this employee AND this month (FIXED)
+                // Filter responsibilities for current month
                 const employeeResponsibilities = allResponsibilities.filter(r => {
                     if (r.assignedEmployeeId != employeeId) return false;
-
-                    // Filter by month field (same as backend)
-                    if (r.month) {
-                        return r.month === month;
-                    }
-
-                    // Fallback for legacy data without month field
-                    if (r.createdAt) {
-                        return r.createdAt.startsWith(month);
-                    }
-
-                    // If no date info, exclude it
+                    if (r.month) return r.month === month;
+                    if (r.createdAt) return r.createdAt.startsWith(month);
                     return false;
                 });
 
                 const validationErrors = validateInvoiceData(employee, salaryData, completedTasks, monthDeductions, employeeResponsibilities);
                 if (validationErrors.length > 0) throw new Error('أخطاء في التحقق من البيانات: ' + validationErrors.join(', '));
-
-                console.log('✓ Task Validation:', { actualCount: completedTasks.length, reportedCount: salaryData.tasks?.completedCount || 0 });
-                const calculatedDeductions = monthDeductions.reduce((sum, d) => sum + (d.amount || 0), 0);
-                console.log('✓ Deductions Validation:', { calculated: calculatedDeductions, reported: salaryData.deductions?.total || 0 });
 
                 populateInvoice(employee, salaryData, completedTasks, monthDeductions, employeeResponsibilities);
 
@@ -442,10 +383,12 @@
         }
 
         function populateInvoice(employee, salaryData, tasks, deductions, responsibilities) {
+            // Employee info
             document.getElementById('employee-name').textContent = employee.name || '-';
             document.getElementById('employee-id').textContent = employee.id || '-';
             document.getElementById('invoice-date').textContent = formatArabicDate();
 
+            // Hours
             const attendance = salaryData.attendance || {};
             const totalHours = Math.round(attendance.totalHours || 0);
             const overtimeHours = Math.round(attendance.overtimeHours || 0);
@@ -455,42 +398,44 @@
             document.getElementById('overtime-hours').textContent = overtimeHours + ' ساعة';
             document.getElementById('total-hours').textContent = totalHours + ' ساعة';
 
-            const tasksCount = tasks.length;
-            const taskEarnings = salaryData.taskEarnings || salaryData.tasks?.totalEarnings || 0;
+            // Tasks COUNT only (not list)
+            const tasksList = document.getElementById('tasks-list');
+            if (tasks && tasks.length > 0) {
+                tasksList.innerHTML = `
+                    <div class="data-row">
+                        <span class="data-label">${tasks.length} مهمة</span>
+                    </div>
+                `;
+            } else {
+                tasksList.innerHTML = '<div class="data-row"><span class="data-label">لا توجد مهام</span></div>';
+            }
 
-            document.getElementById('tasks-completed').textContent = tasksCount;
-            document.getElementById('task-earnings').textContent = formatCurrency(taskEarnings);
-
+            // Responsibilities COUNT only (not list)
             const responsibilitiesList = document.getElementById('responsibilities-list');
             if (responsibilities && responsibilities.length > 0) {
-                responsibilitiesList.innerHTML = responsibilities.map(r => `
-                    <div class="responsibility-item">
-                        <span class="responsibility-title">${r.title || r.name || 'مسؤولية'}</span>
-                        <span class="responsibility-price">+${formatCurrency(r.monthlyPrice || 0)}</span>
+                responsibilitiesList.innerHTML = `
+                    <div class="data-row">
+                        <span class="data-label">${responsibilities.length} مسؤولية</span>
                     </div>
-                `).join('');
+                `;
             } else {
                 responsibilitiesList.innerHTML = '<div class="data-row"><span class="data-label">لا توجد مسؤوليات</span></div>';
             }
 
+            // Deductions COUNT only (not list)
             const deductionsList = document.getElementById('deductions-list');
             if (deductions && deductions.length > 0) {
-                deductionsList.innerHTML = deductions.map(d => `
-                    <div class="deduction-item">
-                        <span class="deduction-reason">${d.reason || 'خصم'}</span>
-                        <span class="deduction-amount">-${formatCurrency(d.amount)}</span>
+                deductionsList.innerHTML = `
+                    <div class="data-row">
+                        <span class="data-label">${deductions.length} خصم</span>
                     </div>
-                `).join('');
+                `;
             } else {
                 deductionsList.innerHTML = '<div class="data-row"><span class="data-label">لا توجد خصومات</span></div>';
             }
 
-            const grossSalary = salaryData.grossSalary || 0;
-            const totalDeductions = deductions.reduce((sum, d) => sum + (d.amount || 0), 0);
-            const netSalary = salaryData.netSalary || (grossSalary - totalDeductions);
-
-            document.getElementById('gross-salary').textContent = formatCurrency(grossSalary);
-            document.getElementById('total-deductions').textContent = '-' + formatCurrency(totalDeductions);
+            // Display ONLY net salary
+            const netSalary = salaryData.netSalary || 0;
             document.getElementById('net-salary').textContent = formatCurrency(netSalary);
         }
 

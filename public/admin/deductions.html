@@ -29,7 +29,6 @@
         </div>
     </div>
 
-    <!-- Add Deduction Modal -->
     <div id="add-deduction-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -45,15 +44,40 @@
                     </div>
 
                     <div class="form-group">
+                        <label class="form-label">Deduction Type *</label>
+                        <div style="display: flex; gap: 20px; margin-bottom: 10px;">
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <input type="radio" name="deductionType" value="fixed" checked
+                                    onchange="toggleDeductionType('add')">
+                                <span>Fixed Amount (EGP)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <input type="radio" name="deductionType" value="hours"
+                                    onchange="toggleDeductionType('add')">
+                                <span>Hour-Based Deduction</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="add-fixed-amount-group">
                         <label class="form-label">Deduction Amount (EGP) *</label>
                         <input type="number" name="value" class="form-control" min="0" step="0.01"
                             placeholder="e.g., 100, 250, 500" required>
                         <small class="text-muted">Enter fixed amount in EGP (no percentage)</small>
                     </div>
 
+                    <div class="form-group" id="add-hours-deducted-group" style="display: none;">
+                        <label class="form-label">Hours to Deduct *</label>
+                        <input type="number" name="hoursDeducted" class="form-control" min="0" step="0.5"
+                            placeholder="e.g., 1, 2, 4.5" oninput="calculateDeductionPreview('add')">
+                        <small class="text-muted" id="add-hours-preview">Select an employee to see deduction
+                            preview</small>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label">Assign To Employee *</label>
-                        <select name="employeeId" class="form-control" id="deduction-employee-select" required>
+                        <select name="employeeId" class="form-control" id="deduction-employee-select" required
+                            onchange="calculateDeductionPreview('add')">
                             <option value="">-- Select Employee --</option>
                         </select>
                         <small class="text-muted"><i class="fas fa-exclamation-triangle"></i> Deductions must be
@@ -68,7 +92,6 @@
         </div>
     </div>
 
-    <!-- Edit Deduction Modal -->
     <div id="edit-deduction-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -145,7 +168,21 @@
             }
 
             const rows = deductions.map(deduction => {
-                const valueDisplay = utils.formatCurrency(deduction.value) + ' EGP';
+                let valueDisplay;
+                if (deduction.hoursDeducted != null && deduction.hoursDeducted > 0) {
+                    // Hour-based deduction: show hours and calculated amount
+                    const employee = employees.find(e => e.id === deduction.employeeId);
+                    // ⚠️ تم التعديل هنا: استخدام normalHourRate لحساب قيمة الخصم بالساعات
+                    const hourlyRate = employee ? employee.normalHourRate : 0; 
+                    const calculatedAmount = deduction.hoursDeducted * hourlyRate;
+                    valueDisplay = `<span style="color: #ff6b35; font-weight: 500;">
+                        <i class="fas fa-clock"></i> ${deduction.hoursDeducted} hours 
+                        (${utils.formatCurrency(calculatedAmount)} EGP)
+                    </span>`;
+                } else {
+                    // Fixed amount deduction
+                    valueDisplay = utils.formatCurrency(deduction.value) + ' EGP';
+                }
 
                 return {
                     data: [
@@ -164,8 +201,8 @@
           ${createTable(
                 ['Name', 'Amount', 'Employee', 'Created'],
                 rows,
-                (row) => `              <button class="btn btn-sm btn-danger" onclick="deleteDeduction(${row.id})">Delete</button>
-            `
+                (row) => `           <button class="btn btn-sm btn-danger" onclick="deleteDeduction(${row.id})">Delete</button>
+          `
             )}
         </div>
       `;
@@ -173,21 +210,47 @@
 
         function openAddDeductionModal() {
             document.getElementById('add-deduction-form').reset();
+            toggleDeductionType('add'); // Initialize the correct fields
             openModal('add-deduction-modal');
         }
 
         async function submitAddDeduction() {
             const form = document.getElementById('add-deduction-form');
             const formData = new FormData(form);
+            const deductionType = formData.get('deductionType');
 
             const data = {
                 name: formData.get('name'),
                 type: 'fixed',
-                value: parseFloat(formData.get('value')),
                 employeeId: formData.get('employeeId') ? parseInt(formData.get('employeeId')) : null
             };
 
-            if (!data.name || data.value === undefined) {
+            // Handle hour-based or fixed amount deduction
+            if (deductionType === 'hours') {
+                const hoursDeducted = parseFloat(formData.get('hoursDeducted'));
+                if (!hoursDeducted || hoursDeducted <= 0) {
+                    showToast('Please enter a valid number of hours to deduct', 'error');
+                    return;
+                }
+                data.hoursDeducted = hoursDeducted;
+                
+                // ⚠️ تم التعديل هنا: استخدام normalHourRate لحساب قيمة الخصم (value) عند الإضافة
+                const employee = employees.find(e => e.id === data.employeeId);
+                // استخدام normalHourRate لحساب القيمة بالجنيه المصري
+                const hourlyRate = employee ? employee.normalHourRate : 0; 
+                data.value = hoursDeducted * hourlyRate;
+                
+            } else {
+                const value = parseFloat(formData.get('value'));
+                if (!value || value <= 0) {
+                    showToast('Please enter a valid deduction amount', 'error');
+                    return;
+                }
+                data.value = value;
+                data.hoursDeducted = null;
+            }
+
+            if (!data.name) {
                 showToast('Please fill in all required fields', 'error');
                 return;
             }
@@ -217,7 +280,8 @@
             const form = document.getElementById('edit-deduction-form');
             form.elements.id.value = deduction.id;
             form.elements.name.value = deduction.name;
-            form.elements.type.value = deduction.type;
+            // لاحظ: حقل type غير موجود في نموذج التعديل، لذلك لا يمكن تعيين قيمته هنا.
+            // form.elements.type.value = deduction.type; 
             form.elements.value.value = deduction.value;
 
             openModal('edit-deduction-modal');
@@ -230,7 +294,7 @@
 
             const data = {
                 name: formData.get('name'),
-                type: 'fixed',
+                type: 'fixed', // يتم افتراض أنه 'fixed' لأنه لا يوجد خيار لساعات في نموذج التعديل
                 value: parseFloat(formData.get('value'))
             };
 
@@ -266,6 +330,77 @@
                     }
                 }
             );
+        }
+
+        // Toggle between fixed amount and hour-based deduction
+        function toggleDeductionType(modal) {
+            const form = document.getElementById(`${modal}-deduction-form`);
+            const typeRadios = form.querySelectorAll('input[name="deductionType"]');
+            const selectedType = Array.from(typeRadios).find(r => r.checked)?.value || 'fixed';
+
+            const fixedGroup = document.getElementById(`${modal}-fixed-amount-group`);
+            const hoursGroup = document.getElementById(`${modal}-hours-deducted-group`);
+            const valueInput = form.querySelector('input[name="value"]');
+            const hoursInput = form.querySelector('input[name="hoursDeducted"]');
+
+            if (selectedType === 'hours') {
+                fixedGroup.style.display = 'none';
+                hoursGroup.style.display = 'block';
+                valueInput.required = false;
+                hoursInput.required = true;
+            } else {
+                fixedGroup.style.display = 'block';
+                hoursGroup.style.display = 'none';
+                valueInput.required = true;
+                hoursInput.required = false;
+            }
+            calculateDeductionPreview(modal);
+        }
+
+        // Calculate and show deduction preview for hour-based deductions
+        function calculateDeductionPreview(modal) {
+            const form = document.getElementById(`${modal}-deduction-form`);
+            const typeRadios = form.querySelectorAll('input[name="deductionType"]');
+            const selectedType = Array.from(typeRadios).find(r => r.checked)?.value || 'fixed';
+
+            if (selectedType !== 'hours') return;
+
+            const hoursInput = form.querySelector('input[name="hoursDeducted"]');
+            const employeeSelect = form.querySelector('select[name="employeeId"]');
+            const previewElement = document.getElementById(`${modal}-hours-preview`);
+
+            if (!hoursInput || !employeeSelect || !previewElement) return;
+
+            const hours = parseFloat(hoursInput.value) || 0;
+            const employeeId = parseInt(employeeSelect.value);
+
+            if (!employeeId) {
+                previewElement.textContent = 'Select an employee to see deduction preview';
+                previewElement.style.color = '';
+                return;
+            }
+
+            const employee = employees.find(e => e.id === employeeId);
+            if (!employee) {
+                previewElement.textContent = 'Employee not found';
+                previewElement.style.color = '#dc3545';
+                return;
+            }
+
+            // ⚠️ تم التعديل هنا: استخدام normalHourRate لحساب قيمة المعاينة
+            const hourlyRate = employee.normalHourRate || 0;
+            const deductionAmount = hours * hourlyRate;
+
+            if (hours > 0) {
+                previewElement.innerHTML = `<strong style="color: #ff6b35;">
+                    <i class="fas fa-info-circle"></i> 
+                    ${hours} hours × ${utils.formatCurrency(hourlyRate)} EGP/hour = 
+                    ${utils.formatCurrency(deductionAmount)} EGP deduction
+                </strong>`;
+            } else {
+                previewElement.textContent = `Employee hourly rate: ${utils.formatCurrency(hourlyRate)} EGP/hour`;
+                previewElement.style.color = '';
+            }
         }
 
         loadEmployees();

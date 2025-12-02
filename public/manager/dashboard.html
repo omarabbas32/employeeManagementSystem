@@ -114,10 +114,11 @@
                 const todayAttendance = attendance.find(a => a.date === today);
 
                 if (todayAttendance && !todayAttendance.checkOut) {
-                    document.getElementById('checkin-btn').textContent = '<i class="fas fa-sign-out-alt"></i> Quick Check-Out';
-                    document.getElementById('checkin-btn').onclick = quickCheckOut;
-                    document.getElementById('checkin-btn').classList.remove('btn-success');
-                    document.getElementById('checkin-btn').classList.add('btn-danger');
+                    const btn = document.getElementById('checkin-btn');
+                    btn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Quick Check-Out';
+                    btn.onclick = quickCheckOut;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-danger');
                 }
 
                 hideLoading();
