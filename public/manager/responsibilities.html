@@ -16,7 +16,7 @@
         <div class="main-content">
             <div class="card">
                 <h1>My Responsibilities</h1>
-                <p class="text-muted">View your assigned responsibilities and earnings</p>
+                <p class="text-muted">View your assigned responsibilities</p>
             </div>
 
             <div class="card">
@@ -31,10 +31,10 @@
 
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Monthly Summary</h3>
+                    <h3 class="card-title">Summary</h3>
                 </div>
                 <div class="card-body">
-                    <div class="grid grid-3">
+                    <div class="grid grid-2">
                         <div style="text-align: center;">
                             <h3 id="total-responsibilities">0</h3>
                             <p class="text-muted">Total Responsibilities</p>
@@ -42,10 +42,6 @@
                         <div style="text-align: center;">
                             <h3 id="active-count">0</h3>
                             <p class="text-muted">Active</p>
-                        </div>
-                        <div style="text-align: center;">
-                            <h3 id="total-earnings">0 EGP</h3>
-                            <p class="text-muted">Monthly Earnings</p>
                         </div>
                     </div>
                 </div>
@@ -99,7 +95,6 @@
             const html = responsibilities.map(resp => {
                 const statusClass = resp.status === 'Active' ? 'success' :
                     resp.status === 'Pending' ? 'warning' : 'secondary';
-                const monthlyEarning = (resp.monthlyPrice || 0) * (resp.factor || 1);
 
                 return `
                     <div class="responsibility-card" style="
@@ -115,12 +110,6 @@
                                 <h4 style="margin: 0 0 0.5rem 0;">${resp.title || resp.name}</h4>
                                 <span class="badge badge-${statusClass}">${resp.status || 'Active'}</span>
                             </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 1.5rem; font-weight: 600; color: var(--primary);">
-                                    ${monthlyEarning.toFixed(2)} EGP
-                                </div>
-                                <small class="text-muted">per month</small>
-                            </div>
                         </div>
 
                         ${resp.description ? `
@@ -135,11 +124,7 @@
                             </div>
                         ` : ''}
 
-                        <div class="grid grid-3 mt-1" style="gap: 1rem;">
-                            <div>
-                                <small class="text-muted">Base Price</small>
-                                <div><strong>${resp.monthlyPrice || 0} EGP</strong></div>
-                            </div>
+                        <div class="grid grid-2 mt-1" style="gap: 1rem;">
                             <div>
                                 <small class="text-muted">Factor</small>
                                 <div><strong>×${resp.factor || 1}</strong></div>
@@ -159,13 +144,9 @@
         function updateSummary() {
             const total = responsibilities.length;
             const active = responsibilities.filter(r => r.status === 'Active').length;
-            const totalEarnings = responsibilities.reduce((sum, r) =>
-                sum + ((r.monthlyPrice || 0) * (r.factor || 1)), 0
-            );
 
             document.getElementById('total-responsibilities').textContent = total;
             document.getElementById('active-count').textContent = active;
-            document.getElementById('total-earnings').textContent = totalEarnings.toFixed(2) + ' EGP';
         }
 
         loadResponsibilities();

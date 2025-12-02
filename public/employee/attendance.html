@@ -16,7 +16,7 @@
         <div class="main-content">
             <div class="card">
                 <h1>My Attendance</h1>
-                <p class="text-muted">Track your attendance and working hours</p>
+                <p class="text-muted">View your attendance and working hours</p>
             </div>
 
             <!-- Today's Sessions Section -->
@@ -25,15 +25,7 @@
                     <h3 class="card-title">Today's Attendance Sessions</h3>
                 </div>
                 <div class="card-body">
-                    <div class="flex gap-1 mb-2">
-                        <button class="btn btn-success" onclick="promptCheckIn()">
-                            Check In
-                        </button>
-                        <button class="btn btn-danger" onclick="promptCheckOut()">
-                            Check Out
-                        </button>
-                    </div>
-
+                    <p class="text-muted" style="margin-bottom: 1rem;"><i class="fas fa-info-circle"></i> Your manager will check you in and out</p>
                     <div id="today-sessions" class="mt-2">
                         <p class="text-muted">Loading today's sessions...</p>
                     </div>
@@ -133,7 +125,7 @@
             const container = document.getElementById('today-sessions');
 
             if (todaySessions.length === 0) {
-                container.innerHTML = '<p class="text-muted">No check-ins today. Click "Check In" to start.</p>';
+                container.innerHTML = '<p class="text-muted">No check-ins today.</p>';
                 return;
             }
 
@@ -244,36 +236,6 @@
                 document.getElementById('avg-hours').textContent = summary.avgHoursPerDay || 0;
             } catch (error) {
                 console.error('Failed to load monthly summary:', error);
-            }
-        }
-
-        // Check in without code
-        async function promptCheckIn() {
-            try {
-                showLoading();
-                await api.checkIn(user.id);
-                hideLoading();
-                showToast('Checked in successfully!', 'success');
-                loadTodaySessions();
-                loadAttendance();
-            } catch (error) {
-                hideLoading();
-                showToast('Check-in failed: ' + error.message, 'error');
-            }
-        }
-
-        // Check out without code
-        async function promptCheckOut() {
-            try {
-                showLoading();
-                await api.checkOut(user.id);
-                hideLoading();
-                showToast('Checked out successfully!', 'success');
-                loadTodaySessions();
-                loadAttendance();
-            } catch (error) {
-                hideLoading();
-                showToast('Check-out failed: ' + error.message, 'error');
             }
         }
 

@@ -15,27 +15,37 @@
 
         <div class="main-content">
             <div class="card">
-                <h1>My Attendance</h1>
-                <p class="text-muted">Track your attendance and working hours</p>
+                <h1>Employee Attendance Management</h1>
+                <p class="text-muted">Manage employee check-in and check-out by username</p>
             </div>
 
-            <!-- Today's Sessions Section -->
+            <!-- Employee Selection Section -->
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Today's Attendance Sessions</h3>
+                    <h3 class="card-title">Select Employee</h3>
                 </div>
                 <div class="card-body">
+                    <div class="form-group">
+                        <label class="form-label">Employee Username</label>
+                        <input type="text" id="employee-username" class="form-control" placeholder="Enter employee username...">
+                        <small class="text-muted">Enter the username of the employee to check in/out</small>
+                    </div>
+                    
+                    <div id="employee-info" style="display: none; margin-bottom: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 8px;">
+                        <strong>Selected Employee:</strong> <span id="employee-name"></span>
+                    </div>
+
                     <div class="flex gap-1 mb-2">
-                        <button class="btn btn-success" onclick="promptCheckIn()">
-                            <i class="fas fa-check-circle"></i> Check In
+                        <button class="btn btn-success" onclick="promptCheckInForEmployee()">
+                            <i class="fas fa-check-circle"></i> Check In Employee
                         </button>
-                        <button class="btn btn-danger" onclick="promptCheckOut()">
-                            <i class="fas fa-sign-out-alt"></i> Check Out
+                        <button class="btn btn-danger" onclick="promptCheckOutForEmployee()">
+                            <i class="fas fa-sign-out-alt"></i> Check Out Employee
                         </button>
                     </div>
 
                     <div id="today-sessions" class="mt-2">
-                        <p class="text-muted">Loading today's sessions...</p>
+                        <p class="text-muted">Enter an employee username to view their sessions</p>
                     </div>
                 </div>
             </div>
@@ -50,7 +60,7 @@
                     </div>
                 </div>
                 <div class="card-body" id="attendance-history">
-                    <p class="text-muted">Loading attendance history...</p>
+                    <p class="text-muted">Select an employee to view attendance history</p>
                 </div>
             </div>
 
@@ -95,6 +105,7 @@
 
         let attendanceRecords = [];
         let todaySessions = [];
+        let selectedEmployee = null;
 
         // Generate month options
         function generateMonthOptions() {
@@ -116,10 +127,50 @@
 
         document.getElementById('month-select').addEventListener('change', loadAttendance);
 
-        // Load today's sessions
-        async function loadTodaySessions() {
+        // Lookup employee by username
+        async function lookupEmployee() {
+            const username = document.getElementById('employee-username').value.trim();
+            
+            if (!username) {
+                document.getElementById('employee-info').style.display = 'none';
+                selectedEmployee = null;
+                document.getElementById('today-sessions').innerHTML = '<p class="text-muted">Enter an employee username to view their sessions</p>';
+                return;
+            }
+
             try {
-                todaySessions = await api.getTodaySessions(user.id);
+                selectedEmployee = await api.lookupEmployeeByUsername(username);
+                document.getElementById('employee-name').textContent = `${selectedEmployee.name} (${selectedEmployee.username})`;
+                document.getElementById('employee-info').style.display = 'block';
+                
+                // Load sessions for this employee
+                loadTodaySessions();
+                loadAttendance();
+            } catch (error) {
+                showToast('Employee not found: ' + error.message, 'error');
+                document.getElementById('employee-info').style.display = 'none';
+                selectedEmployee = null;
+                document.getElementById('today-sessions').innerHTML = '<p class="text-muted">Employee not found</p>';
+            }
+        }
+
+        // Add event listener for username input
+        document.getElementById('employee-username').addEventListener('blur', lookupEmployee);
+        document.getElementById('employee-username').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                lookupEmployee();
+            }
+        });
+
+        // Load today's sessions for selected employee
+        async function loadTodaySessions() {
+            if (!selectedEmployee) {
+                document.getElementById('today-sessions').innerHTML = '<p class="text-muted">Enter an employee username to view their sessions</p>';
+                return;
+            }
+
+            try {
+                todaySessions = await api.getTodaySessions(selectedEmployee.id);
                 renderTodaySessions();
             } catch (error) {
                 console.error('Failed to load today sessions:', error);
@@ -133,7 +184,7 @@
             const container = document.getElementById('today-sessions');
 
             if (todaySessions.length === 0) {
-                container.innerHTML = '<p class="text-muted">No check-ins today. Click "Check In" to start.</p>';
+                container.innerHTML = '<p class="text-muted">No check-ins today for this employee.</p>';
                 return;
             }
 
@@ -178,13 +229,18 @@
             `;
         }
 
-        // Load attendance history
+        // Load attendance history for selected employee
         async function loadAttendance() {
+            if (!selectedEmployee) {
+                document.getElementById('attendance-history').innerHTML = '<p class="text-muted">Select an employee to view attendance history</p>';
+                return;
+            }
+
             const month = document.getElementById('month-select').value;
 
             try {
                 showLoading();
-                attendanceRecords = await api.getAttendance(user.id, { month });
+                attendanceRecords = await api.getAttendance(selectedEmployee.id, { month });
 
                 renderAttendanceHistory();
                 await calculateMonthlySummary(month);
@@ -233,10 +289,14 @@
             );
         }
 
-        // Calculate monthly summary
+        // Calculate monthly summary for selected employee
         async function calculateMonthlySummary(month) {
+            if (!selectedEmployee) {
+                return;
+            }
+
             try {
-                const summary = await api.getMonthlyTotal(user.id, { month });
+                const summary = await api.getMonthlyTotal(selectedEmployee.id, { month });
 
                 document.getElementById('total-sessions').textContent = summary.totalSessions || 0;
                 document.getElementById('total-days').textContent = summary.daysWorked || 0;
@@ -247,13 +307,18 @@
             }
         }
 
-        // Check in without code
-        async function promptCheckIn() {
+        // Check in employee by username
+        async function promptCheckInForEmployee() {
+            if (!selectedEmployee) {
+                showToast('Please enter an employee username first', 'error');
+                return;
+            }
+
             try {
                 showLoading();
-                await api.checkIn(user.id);
+                await api.checkIn(selectedEmployee.id);
                 hideLoading();
-                showToast('<i class="fas fa-check-circle"></i> Checked in successfully!', 'success');
+                showToast(`<i class="fas fa-check-circle"></i> ${selectedEmployee.name} checked in successfully!`, 'success');
                 loadTodaySessions();
                 loadAttendance();
             } catch (error) {
@@ -262,13 +327,18 @@
             }
         }
 
-        // Check out without code
-        async function promptCheckOut() {
+        // Check out employee by username
+        async function promptCheckOutForEmployee() {
+            if (!selectedEmployee) {
+                showToast('Please enter an employee username first', 'error');
+                return;
+            }
+
             try {
                 showLoading();
-                await api.checkOut(user.id);
+                await api.checkOut(selectedEmployee.id);
                 hideLoading();
-                showToast('<i class="fas fa-sign-out-alt"></i> Checked out successfully!', 'success');
+                showToast(`<i class="fas fa-sign-out-alt"></i> ${selectedEmployee.name} checked out successfully!`, 'success');
                 loadTodaySessions();
                 loadAttendance();
             } catch (error) {
@@ -279,11 +349,6 @@
 
         // Initialize
         generateMonthOptions();
-        loadTodaySessions();
-        loadAttendance();
-
-        // Refresh today's sessions every 30 seconds
-        setInterval(loadTodaySessions, 30000);
     </script>
 </body>
 

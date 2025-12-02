@@ -4,25 +4,33 @@ const asyncHandler = require('../utils/asyncHandler');
 const { authorizeRoles } = require('../middleware/auth');
 const AttendanceController = require('../controllers/AttendanceController');
 
+// Check in
 router.post(
   '/checkin',
   asyncHandler(async (req, res) => {
     const targetId = Number(req.body.employeeId);
-    if (!req.user.isAdmin && targetId !== Number(req.user.id)) {
+
+    // Allow if: admin, manager, or checking in for themselves
+    if (!req.user.isAdmin && req.user.role !== 'managerial' && targetId !== Number(req.user.id)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
+
     const record = await AttendanceController.checkIn(req.body);
     res.status(201).json(record);
   })
 );
 
+// Check out
 router.post(
   '/checkout',
   asyncHandler(async (req, res) => {
     const targetId = Number(req.body.employeeId);
-    if (!req.user.isAdmin && targetId !== Number(req.user.id)) {
+
+    // Allow if: admin, manager, or checking out for themselves
+    if (!req.user.isAdmin && req.user.role !== 'managerial' && targetId !== Number(req.user.id)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
+
     const record = await AttendanceController.checkOut(req.body);
     res.json(record);
   })
@@ -53,7 +61,7 @@ router.get(
   })
 );
 
-// NEW: Get monthly total for an employee
+// Get monthly total hours for an employee
 router.get(
   '/:employeeId/monthly-total',
   asyncHandler(async (req, res) => {

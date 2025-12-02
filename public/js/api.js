@@ -348,6 +348,23 @@ class APIService {
     async getEmployeeDeductions(employeeId) {
         return this.get(`/deductions/employee/${employeeId}`);
     }
+
+    // ===================================
+    // Employee Lookup Endpoints
+    // ===================================
+
+    async lookupEmployeeByUsername(username) {
+        return this.get(`/employees/lookup/${username}`);
+    }
+
+    // ===================================
+    // Daily Report Endpoints
+    // ===================================
+
+    async getDailyReport(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        return this.get(`/reports/daily${queryString ? '?' + queryString : ''}`);
+    }
 }
 
 // Export singleton instance

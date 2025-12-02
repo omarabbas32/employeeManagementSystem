@@ -15,7 +15,14 @@ const listResponsibilities = async (filters = {}) => {
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const responsibilities = await allAsync(`SELECT * FROM responsibilities ${whereClause} ORDER BY id DESC`, params);
+  const responsibilities = await allAsync(
+    `SELECT r.*, e.name as employeeName 
+     FROM responsibilities r
+     LEFT JOIN employees e ON r.assignedEmployeeId = e.id
+     ${whereClause} 
+     ORDER BY r.id DESC`,
+    params
+  );
 
   return responsibilities.map(resp => ({ ...resp, title: resp.name }));
 };

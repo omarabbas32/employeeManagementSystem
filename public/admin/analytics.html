@@ -7,6 +7,7 @@
     <title>Employee Analytics - EMS</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 
 <body>
@@ -15,8 +16,15 @@
 
         <div class="main-content">
             <div class="card">
-                <h1>Employee Analytics</h1>
-                <p class="text-muted">View detailed performance metrics for each employee</p>
+                <div class="card-header">
+                    <div>
+                        <h1>Employee Analytics</h1>
+                        <p class="text-muted">View detailed performance metrics for each employee</p>
+                    </div>
+                    <button class="btn btn-success" onclick="exportToExcel()" id="export-btn" style="display: none;">
+                        <i class="fas fa-file-excel"></i> Export to Excel
+                    </button>
+                </div>
             </div>
 
             <div class="card">
@@ -162,10 +170,12 @@
 
             if (!selectedEmployeeId) {
                 document.getElementById('analytics-section').style.display = 'none';
+                document.getElementById('export-btn').style.display = 'none';
                 return;
             }
 
             document.getElementById('analytics-section').style.display = 'block';
+            document.getElementById('export-btn').style.display = 'inline-flex';
             await loadEmployeeAnalytics();
         });
 
@@ -325,6 +335,244 @@
                 ['Title', 'Description', 'Monthly Price', 'Factor'],
                 rows
             );
+        }
+
+        async function exportToExcel() {
+            if (!selectedEmployeeId || !employeeData) {
+                showToast('Please select an employee first', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                const month = document.getElementById('month-select').value;
+                const monthLabel = document.getElementById('month-select').selectedOptions[0].text;
+                
+                // Create a new workbook
+                const wb = XLSX.utils.book_new();
+
+                // Sheet 1: Employee Information
+                const employeeInfo = [
+                    ['Employee Information', ''],
+                    ['Name', employeeData.name],
+                    ['Email', employeeData.email || '-'],
+                    ['Username', employeeData.username || '-'],
+                    ['Type', employeeData.employeeType],
+                    ['Base Salary', employeeData.baseSalary],
+                    ['Monthly Factor', employeeData.monthlyFactor],
+                    ['Normal Hour Rate', employeeData.normalHourRate || 0],
+                    ['Overtime Hour Rate', employeeData.overtimeHourRate || 0],
+                    [''],
+                    ['Report Generated', new Date().toLocaleString()],
+                    ['Month', monthLabel]
+                ];
+                const ws1 = XLSX.utils.aoa_to_sheet(employeeInfo);
+                ws1['!cols'] = [{ wch: 20 }, { wch: 30 }];
+                XLSX.utils.book_append_sheet(wb, ws1, 'Employee Info');
+
+                // Sheet 2: Monthly Summary
+                const stats = await api.getMonthlyTotal(selectedEmployeeId, { month });
+                const monthlySummary = [
+                    ['Monthly Summary - ' + monthLabel, ''],
+                    [''],
+                    ['Metric', 'Value'],
+                    ['Total Sessions', stats.totalSessions || 0],
+                    ['Days Worked', stats.daysWorked || 0],
+                    ['Total Hours', (stats.totalHours || 0).toFixed(2)],
+                    ['Average Hours/Day', stats.avgHoursPerDay || 0],
+                    [''],
+                    ['Task Statistics', ''],
+                    ['Total Tasks', employeeData.assignedTasks?.length || 0],
+                    ['Completed Tasks', employeeData.assignedTasks?.filter(t => t.status === 'Done').length || 0],
+                    ['Pending Tasks', employeeData.assignedTasks?.filter(t => t.status === 'Pending').length || 0]
+                ];
+                const ws2 = XLSX.utils.aoa_to_sheet(monthlySummary);
+                ws2['!cols'] = [{ wch: 25 }, { wch: 15 }];
+                XLSX.utils.book_append_sheet(wb, ws2, 'Monthly Summary');
+
+                // Sheet 3: Attendance Records
+                const attendance = employeeData.attendanceRecords || [];
+                const monthAttendance = attendance.filter(a => a.date && a.date.startsWith(month));
+                const attendanceData = [
+                    ['Attendance Records - ' + monthLabel],
+                    [''],
+                    ['Date', 'Check In', 'Check Out', 'Total Hours', 'Day of Week']
+                ];
+                monthAttendance.forEach(record => {
+                    const date = new Date(record.date);
+                    attendanceData.push([
+                        utils.formatDateReadable(record.date),
+                        utils.formatTime(record.checkIn) || '-',
+                        utils.formatTime(record.checkOut) || '-',
+                        record.totalHours ? record.totalHours.toFixed(2) : '-',
+                        date.toLocaleDateString('en-US', { weekday: 'long' })
+                    ]);
+                });
+                const ws3 = XLSX.utils.aoa_to_sheet(attendanceData);
+                ws3['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }];
+                XLSX.utils.book_append_sheet(wb, ws3, 'Attendance');
+
+                // Sheet 4: Tasks
+                const tasks = employeeData.assignedTasks || [];
+                const monthTasks = tasks.filter(t => {
+                    // Include tasks due this month or completed this month
+                    const isDueThisMonth = t.dueDate && t.dueDate.startsWith(month);
+                    const isCompletedThisMonth = t.completedAt && t.completedAt.startsWith(month);
+                    return isDueThisMonth || isCompletedThisMonth;
+                });
+                
+                const tasksData = [
+                    ['Task Assignments - ' + monthLabel],
+                    [''],
+                    ['Task Name', 'Status', 'Assigned Date', 'Due Date', 'Completed Date', 'Price', 'Factor', 'Total Earnings']
+                ];
+                monthTasks.forEach(task => {
+                    const price = task.price || task.templatePrice || 0;
+                    const factor = task.factor || task.templateFactor || 1;
+                    const earnings = price * factor;
+                    tasksData.push([
+                        task.title || task.name || task.templateName || '-',
+                        task.status,
+                        utils.formatDateReadable(task.createdAt),
+                        task.dueDate ? utils.formatDateReadable(task.dueDate) : '-',
+                        task.completedAt ? utils.formatDateReadable(task.completedAt) : '-',
+                        price.toFixed(2),
+                        factor,
+                        earnings.toFixed(2) + ' EGP'
+                    ]);
+                });
+                
+                // Add summary row
+                tasksData.push(['']);
+                tasksData.push(['SUMMARY', '', '', '', '', '', '', '']);
+                tasksData.push(['Total Tasks', monthTasks.length, '', '', '', '', '', '']);
+                tasksData.push(['Completed', monthTasks.filter(t => t.status === 'Done').length, '', '', '', '', '', '']);
+                tasksData.push(['Pending', monthTasks.filter(t => t.status === 'Pending' || t.status === 'In Progress').length, '', '', '', '', '', '']);
+                
+                const ws4 = XLSX.utils.aoa_to_sheet(tasksData);
+                ws4['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 8 }, { wch: 15 }];
+                XLSX.utils.book_append_sheet(wb, ws4, 'Tasks');
+
+                // Sheet 5: Responsibilities
+                const responsibilities = employeeData.assignedResponsibilities || [];
+                const respData = [
+                    ['Responsibilities'],
+                    [''],
+                    ['Title', 'Description', 'Monthly Price', 'Factor', 'Total', 'Status']
+                ];
+                responsibilities.forEach(resp => {
+                    const total = (resp.monthlyPrice || 0) * (resp.factor || 1);
+                    respData.push([
+                        resp.title,
+                        resp.description || '-',
+                        resp.monthlyPrice || 0,
+                        resp.factor || 1,
+                        total.toFixed(2),
+                        resp.status || 'Active'
+                    ]);
+                });
+                const ws5 = XLSX.utils.aoa_to_sheet(respData);
+                ws5['!cols'] = [{ wch: 25 }, { wch: 40 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+                XLSX.utils.book_append_sheet(wb, ws5, 'Responsibilities');
+
+                // Sheet 6: Salary Calculation
+                const normalRate = employeeData.normalHourRate || 0;
+                const overtimeRate = employeeData.overtimeHourRate || 0;
+                const requiredHours = employeeData.requiredMonthlyHours || 160;
+                const totalHours = (stats.totalHours || 0);
+                const normalHours = Math.min(totalHours, requiredHours);
+                const overtimeHours = Math.max(0, totalHours - requiredHours);
+                
+                // Calculate earnings
+                const hoursEarnings = (normalHours * normalRate) + (overtimeHours * overtimeRate);
+                const taskEarnings = tasks
+                    .filter(t => t.status === 'Done' && t.completedAt && t.completedAt.startsWith(month))
+                    .reduce((sum, t) => sum + ((t.price || t.templatePrice || 0) * (t.factor || t.templateFactor || 1)), 0);
+                const respEarnings = responsibilities
+                    .filter(r => r.status === 'Active')
+                    .reduce((sum, r) => sum + ((r.monthlyPrice || 0) * (r.factor || 1)), 0);
+                const totalEarnings = employeeData.baseSalary + hoursEarnings + taskEarnings + respEarnings;
+
+                const salaryData = [
+                    ['Salary Calculation - ' + monthLabel, ''],
+                    [''],
+                    ['HOURS WORKED', ''],
+                    ['Total Hours', totalHours.toFixed(2)],
+                    ['Normal Hours (0-' + requiredHours + ')', normalHours.toFixed(2)],
+                    ['Overtime Hours', overtimeHours.toFixed(2)],
+                    ['Normal Rate', normalRate.toFixed(2) + ' EGP/hour'],
+                    ['Overtime Rate', overtimeRate.toFixed(2) + ' EGP/hour'],
+                    ['Hours Earnings', hoursEarnings.toFixed(2) + ' EGP'],
+                    [''],
+                    ['TASKS COMPLETED THIS MONTH', ''],
+                    ['Tasks Done', tasks.filter(t => t.status === 'Done' && t.completedAt && t.completedAt.startsWith(month)).length],
+                    ['Task Earnings', taskEarnings.toFixed(2) + ' EGP'],
+                    [''],
+                    ['RESPONSIBILITIES', ''],
+                    ['Active Responsibilities', responsibilities.filter(r => r.status === 'Active').length],
+                    ['Responsibility Earnings', respEarnings.toFixed(2) + ' EGP'],
+                    [''],
+                    ['TOTAL SALARY', ''],
+                    ['Base Salary', employeeData.baseSalary.toFixed(2) + ' EGP'],
+                    ['Hours Earnings', hoursEarnings.toFixed(2) + ' EGP'],
+                    ['Task Earnings', taskEarnings.toFixed(2) + ' EGP'],
+                    ['Responsibility Earnings', respEarnings.toFixed(2) + ' EGP'],
+                    [''],
+                    ['TOTAL MONTHLY SALARY', totalEarnings.toFixed(2) + ' EGP']
+                ];
+                const ws6 = XLSX.utils.aoa_to_sheet(salaryData);
+                ws6['!cols'] = [{ wch: 30 }, { wch: 20 }];
+                
+                // Style the total row (make it bold by setting font)
+                ws6['A25'] = { v: 'TOTAL MONTHLY SALARY', t: 's', s: { font: { bold: true } } };
+                ws6['B25'] = { v: totalEarnings.toFixed(2) + ' EGP', t: 's', s: { font: { bold: true } } };
+                
+                XLSX.utils.book_append_sheet(wb, ws6, 'Salary Calculation');
+
+                // Sheet 7: Deductions
+                const deductions = employeeData.deductions || [];
+                const monthDeductions = deductions.filter(d => d.month === month);
+                const deductionsData = [
+                    ['Deductions - ' + monthLabel],
+                    [''],
+                    ['Date', 'Reason', 'Amount', 'Type', 'Notes']
+                ];
+                
+                let totalDeductions = 0;
+                monthDeductions.forEach(deduction => {
+                    const amount = deduction.amount || 0;
+                    totalDeductions += amount;
+                    deductionsData.push([
+                        utils.formatDateReadable(deduction.createdAt || deduction.date),
+                        deduction.reason || '-',
+                        amount.toFixed(2) + ' EGP',
+                        deduction.type || 'Deduction',
+                        deduction.notes || '-'
+                    ]);
+                });
+                
+                // Add summary
+                deductionsData.push(['']);
+                deductionsData.push(['TOTAL DEDUCTIONS', '', totalDeductions.toFixed(2) + ' EGP', '', '']);
+                deductionsData.push(['']);
+                deductionsData.push(['NET SALARY', '', (totalEarnings - totalDeductions).toFixed(2) + ' EGP', '', '']);
+                
+                const ws7 = XLSX.utils.aoa_to_sheet(deductionsData);
+                ws7['!cols'] = [{ wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 40 }];
+                XLSX.utils.book_append_sheet(wb, ws7, 'Deductions');
+
+                // Generate filename
+                const filename = `${employeeData.name.replace(/\s+/g, '_')}_${month}_Report.xlsx`;
+
+                // Write file
+                XLSX.writeFile(wb, filename);
+
+                hideLoading();
+                showToast('Excel file downloaded successfully!', 'success');
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to export: ' + error.message, 'error');
+            }
         }
 
         generateMonthOptions();

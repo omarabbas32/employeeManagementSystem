@@ -186,12 +186,11 @@
             }
 
             const rows = filteredResponsibilities.map(resp => {
-                const employee = employees.find(e => e.id === resp.assignedEmployeeId);
                 return {
                     data: [
                         utils.escapeHtml(resp.title),
                         utils.escapeHtml(resp.description || '-'),
-                        employee ? utils.escapeHtml(employee.name) : 'Unknown',
+                        resp.employeeName ? utils.escapeHtml(resp.employeeName) : 'Unknown',
                         utils.formatCurrency(resp.monthlyPrice),
                         resp.factor,
                         utils.formatDateReadable(resp.createdAt)

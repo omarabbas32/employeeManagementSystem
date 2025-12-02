@@ -6,6 +6,7 @@ const { initDatabase } = require('./source/Data/database');
 const authRoutes = require('./source/Routes/auth');
 const { authenticateUser } = require('./source/middleware/auth');
 const employeeRoutes = require('./source/Routes/employees');
+const employeeLookupRoutes = require('./source/Routes/employee-lookup');
 const taskRoutes = require('./source/Routes/tasks');
 const responsibilityRoutes = require('./source/Routes/responsibilities');
 const attendanceRoutes = require('./source/Routes/attendance');
@@ -14,6 +15,7 @@ const noteRoutes = require('./source/Routes/notes');
 const settingsRoutes = require('./source/Routes/settings');
 const typeRoutes = require('./source/Routes/types');
 const deductionRoutes = require('./source/Routes/deductions');
+const dailyReportRoutes = require('./source/Routes/daily-report');
 
 const app = express();
 
@@ -48,6 +50,7 @@ app.use('/auth', authRoutes);
 app.use(authenticateUser);
 
 app.use('/employees', employeeRoutes);
+app.use('/employees', employeeLookupRoutes);
 app.use('/tasks', taskRoutes);
 app.use('/responsibilities', responsibilityRoutes);
 app.use('/attendance', attendanceRoutes);
@@ -55,8 +58,8 @@ app.use('/salary', salaryRoutes);
 app.use('/notes', noteRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/types', typeRoutes);
-
 app.use('/deductions', deductionRoutes);
+app.use('/reports/daily', dailyReportRoutes);
 
 
 app.use((err, req, res, next) => {

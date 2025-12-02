@@ -50,7 +50,7 @@
             <!-- Assignments Tab -->
             <div id="tab-assignments" class="tab-content" style="display: none;">
                 <div class="card">
-                    <div class="grid grid-3 gap-1">
+                    <div class="grid grid-4 gap-1">
                         <div class="form-group">
                             <input type="text" id="assignment-search-input" class="form-control"
                                 placeholder="Search assignments...">
@@ -67,6 +67,10 @@
                             <select id="assignment-employee-filter" class="form-control">
                                 <option value="">All Employees</option>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            <input type="date" id="assignment-due-date-filter" class="form-control">
+                            <small class="text-muted">Filter by due date</small>
                         </div>
                     </div>
                 </div>
@@ -97,17 +101,6 @@
                     <div class="form-group">
                         <label class="form-label">Description</label>
                         <textarea name="templateDescription" class="form-control" rows="2" readonly></textarea>
-                    </div>
-
-                    <div class="grid grid-2 gap-1">
-                        <div class="form-group">
-                            <label class="form-label">Price</label>
-                            <input type="text" name="templatePrice" class="form-control" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Factor</label>
-                            <input type="text" name="templateFactor" class="form-control" readonly>
-                        </div>
                     </div>
 
                     <hr>
@@ -263,7 +256,6 @@
                     data: [
                         utils.escapeHtml(template.name),
                         utils.escapeHtml(template.description || '-'),
-                        utils.formatCurrency(template.price),
                         template.factor,
                         template.activeAssignments || 0
                     ],
@@ -275,7 +267,7 @@
             container.innerHTML = `
         <div class="card">
           ${createTable(
-                ['Name', 'Description', 'Price', 'Factor', 'Active Assignments'],
+                ['Name', 'Description', 'Factor', 'Active Assignments'],
                 rows,
                 (row) => `
               <button class="btn btn-sm btn-primary" onclick="openAssignModal(${row.id})">Assign to Employee</button>
@@ -307,8 +299,7 @@
             form.elements.templateId.value = template.id;
             form.elements.templateName.value = template.name;
             form.elements.templateDescription.value = template.description || '';
-            form.elements.templatePrice.value = utils.formatCurrency(template.price);
-            form.elements.templateFactor.value = template.factor;
+            // Price and factor fields removed for managers - skip setting them
             form.elements.assignedEmployeeId.value = '';
             form.elements.startDate.value = '';
             form.elements.dueDate.value = '';
@@ -405,14 +396,22 @@
             const searchQuery = document.getElementById('assignment-search-input').value.toLowerCase();
             const statusFilter = document.getElementById('assignment-status-filter').value;
             const employeeFilter = document.getElementById('assignment-employee-filter').value;
+            const dueDateFilter = document.getElementById('assignment-due-date-filter').value;
 
             filteredAssignments = assignments.filter(assignment => {
                 const taskName = assignment.templateName || assignment.name || assignment.title || '';
                 const matchesSearch = taskName.toLowerCase().includes(searchQuery);
                 const matchesStatus = !statusFilter || assignment.status === statusFilter;
                 const matchesEmployee = !employeeFilter || assignment.assignedEmployeeId == employeeFilter;
+                
+                // Check due date filter
+                let matchesDueDate = true;
+                if (dueDateFilter && assignment.dueDate) {
+                    const assignmentDueDate = assignment.dueDate.split('T')[0];
+                    matchesDueDate = assignmentDueDate === dueDateFilter;
+                }
 
-                return matchesSearch && matchesStatus && matchesEmployee;
+                return matchesSearch && matchesStatus && matchesEmployee && matchesDueDate;
             });
 
             renderAssignments();
@@ -421,6 +420,7 @@
         document.getElementById('assignment-search-input').addEventListener('input', applyAssignmentFilters);
         document.getElementById('assignment-status-filter').addEventListener('change', applyAssignmentFilters);
         document.getElementById('assignment-employee-filter').addEventListener('change', applyAssignmentFilters);
+        document.getElementById('assignment-due-date-filter').addEventListener('change', applyAssignmentFilters);
 
         function openManageAssignmentModal(assignmentId) {
             const assignment = assignments.find(a => a.id === assignmentId);

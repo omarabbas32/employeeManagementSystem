@@ -126,9 +126,14 @@ const updateEmployee = async (id, payload) => {
     monthlyFactor = employee.monthlyFactor,
     overtimeFactor = employee.overtimeFactor,
     requiredMonthlyHours = employee.requiredMonthlyHours,
-    notes = employee.notes,
+    normalHourRate = employee.normalHourRate,
+    overtimeHourRate = employee.overtimeHourRate,
+    hourlyRate = employee.hourlyRate,
     password,
   } = payload;
+
+  // Handle notes separately - allow empty string to clear notes
+  const notes = payload.hasOwnProperty('notes') ? payload.notes : employee.notes;
 
   let passwordHash = employee.passwordHash;
   if (password) {
@@ -137,9 +142,9 @@ const updateEmployee = async (id, payload) => {
 
   await runAsync(
     `UPDATE employees
-     SET name = ?, username = ?, email = ?, passwordHash = ?, employeeType = ?, baseSalary = ?, monthlyFactor = ?, overtimeFactor = ?, requiredMonthlyHours = ?, notes = ?
+     SET name = ?, username = ?, email = ?, passwordHash = ?, employeeType = ?, baseSalary = ?, monthlyFactor = ?, overtimeFactor = ?, requiredMonthlyHours = ?, normalHourRate = ?, overtimeHourRate = ?, hourlyRate = ?, notes = ?
      WHERE id = ?`,
-    [name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, requiredMonthlyHours, notes, id]
+    [name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, requiredMonthlyHours, normalHourRate, overtimeHourRate, hourlyRate, notes, id]
   );
 
   return getEmployeeDetails(id);

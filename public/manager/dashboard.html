@@ -89,13 +89,13 @@
                 showLoading();
 
                 const [tasks, attendance] = await Promise.all([
-                    api.getTasks(),
+                    api.getTaskAssignments(), // Get all task assignments
                     api.getAttendance(user.id, { month: utils.getCurrentMonth() })
                 ]);
 
                 // Calculate stats
                 const totalTasks = tasks.length;
-                const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
+                const pendingTasks = tasks.filter(t => t.status === 'Pending' || t.status === 'In Progress').length;
                 const completedTasks = tasks.filter(t => t.status === 'Done').length;
 
                 document.getElementById('total-tasks').textContent = totalTasks;
@@ -137,7 +137,7 @@
 
             const rows = tasks.slice(0, 5).map(task => ({
                 data: [
-                    utils.escapeHtml(task.title),
+                    utils.escapeHtml(task.name || task.title || task.templateName || '-'),
                     `<span class="badge ${utils.getStatusBadgeClass(task.status)}">${task.status}</span>`,
                     utils.formatDateReadable(task.createdAt)
                 ]

@@ -40,11 +40,11 @@
                 </div>
                 <div class="card-body">
                     <div class="grid grid-3 gap-2">
-                        <button class="btn btn-success" onclick="quickCheckIn()" id="checkin-btn">
-                            <i class="fas fa-check-circle"></i> Quick Check-In
-                        </button>
                         <a href="tasks.html" class="btn btn-primary">
                             <i class="fas fa-tasks"></i> My Tasks
+                        </a>
+                        <a href="responsibilities.html" class="btn btn-primary">
+                            <i class="fas fa-user-tie"></i> Responsibilities
                         </a>
                         <a href="attendance.html" class="btn btn-primary">
                             <i class="fas fa-clock"></i> Attendance
@@ -80,9 +80,8 @@
             try {
                 showLoading();
 
-                const [tasks, attendance, monthlyTotal] = await Promise.all([
+                const [tasks, monthlyTotal] = await Promise.all([
                     api.getTaskAssignments({ employeeId: user.id }),
-                    api.getAttendance(user.id, { month: utils.getCurrentMonth() }),
                     api.getMonthlyTotal(user.id, { month: utils.getCurrentMonth() })
                 ]);
 
@@ -96,24 +95,6 @@
                 document.getElementById('total-hours').textContent = totalHours.toFixed(1);
 
                 renderRecentTasks(tasks);
-
-                // Update check-in button
-                const today = utils.formatDate(new Date());
-                const todayAttendance = attendance.find(a => a.date === today && !a.checkOut);
-
-                if (todayAttendance) {
-                    const btn = document.getElementById('checkin-btn');
-                    btn.innerHTML = 'Quick Check-Out';
-                    btn.onclick = quickCheckOut;
-                    btn.classList.remove('btn-success');
-                    btn.classList.add('btn-danger');
-                } else {
-                    const btn = document.getElementById('checkin-btn');
-                    btn.innerHTML = '<i class="fas fa-check-circle"></i> Quick Check-In';
-                    btn.onclick = quickCheckIn;
-                    btn.classList.remove('btn-danger');
-                    btn.classList.add('btn-success');
-                }
 
                 hideLoading();
             } catch (error) {
@@ -145,32 +126,6 @@
                 ['Task', 'Status', 'Assigned Date'],
                 rows
             );
-        }
-
-        async function quickCheckIn() {
-            try {
-                showLoading();
-                await api.checkIn(user.id);
-                hideLoading();
-                showToast('Checked in successfully!', 'success');
-                loadDashboard();
-            } catch (error) {
-                hideLoading();
-                showToast('Check-in failed: ' + error.message, 'error');
-            }
-        }
-
-        async function quickCheckOut() {
-            try {
-                showLoading();
-                await api.checkOut(user.id);
-                hideLoading();
-                showToast('Checked out successfully!', 'success');
-                loadDashboard();
-            } catch (error) {
-                hideLoading();
-                showToast('Check-out failed: ' + error.message, 'error');
-            }
         }
 
         loadDashboard();

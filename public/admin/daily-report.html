@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Report - EMS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>Daily Task Report</h1>
+                <p class="text-muted">View and download daily task reports</p>
+            </div>
+
+            <!-- Date Selection -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Select Date</h3>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-2 gap-1">
+                        <div class="form-group">
+                            <label class="form-label">Report Date</label>
+                            <input type="date" id="report-date" class="form-control">
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-primary" onclick="loadReport()">
+                                <i class="fas fa-search"></i> Generate Report
+                            </button>
+                            <button class="btn btn-success" onclick="downloadPDF()" style="margin-left: 0.5rem;">
+                                <i class="fas fa-download"></i> Download PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Content -->
+            <div id="report-content" class="card" style="display: none;">
+                <div class="card-header">
+                    <h3 class="card-title">Report for <span id="report-date-display"></span></h3>
+                    <div>
+                        <strong>Total Tasks:</strong> <span id="total-tasks">0</span>
+                    </div>
+                </div>
+                <div class="card-body" id="report-table">
+                    <p class="text-muted">Loading report...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init()) throw new Error('Unauthorized');
+
+        const user = auth.getCurrentUser();
+        const isManager = user.employeeType === 'Managerial';
+        const isAdmin = user.employeeType === 'Admin';
+        
+        document.getElementById('sidebar-container').innerHTML = createSidebar(user.employeeType, 'reports');
+
+        let reportData = null;
+
+        // Set default date to today
+        document.getElementById('report-date').valueAsDate = new Date();
+
+        async function loadReport() {
+            const date = document.getElementById('report-date').value;
+            
+            if (!date) {
+                showToast('Please select a date', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                const response = await api.getDailyReport({ date });
+                reportData = response;
+                
+                document.getElementById('report-date-display').textContent = utils.formatDateReadable(date);
+                document.getElementById('total-tasks').textContent = response.totalTasks;
+                
+                renderReport(response.tasks);
+                document.getElementById('report-content').style.display = 'block';
+                
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load report: ' + error.message, 'error');
+            }
+        }
+
+        function renderReport(tasks) {
+            const container = document.getElementById('report-table');
+
+            if (tasks.length === 0) {
+                container.innerHTML = '<p class="text-muted">No tasks found for this date</p>';
+                return;
+            }
+
+            // Determine columns based on role
+            const headers = isManager 
+                ? ['Task Name', 'Employee', 'Status', 'Due Date', 'Completed']
+                : ['Task Name', 'Employee', 'Status', 'Price', 'Due Date', 'Completed'];
+
+            const rows = tasks.map(task => {
+                const data = [
+                    utils.escapeHtml(task.taskName || '-'),
+                    utils.escapeHtml(task.employeeName || '-'),
+                    `<span class="badge ${utils.getStatusBadgeClass(task.status)}">${task.status}</span>`,
+                ];
+
+                // Add price only for non-managers
+                if (!isManager) {
+                    data.push(utils.formatCurrency(task.price || 0));
+                }
+
+                data.push(
+                    task.dueDate ? utils.formatDateReadable(task.dueDate) : '-',
+                    task.completedAt ? utils.formatDateReadable(task.completedAt) : '-'
+                );
+
+                return { data };
+            });
+
+            container.innerHTML = createTable(headers, rows);
+        }
+
+        async function downloadPDF() {
+            if (!reportData) {
+                showToast('Please generate a report first', 'error');
+                return;
+            }
+
+            const date = document.getElementById('report-date').value;
+            const element = document.getElementById('report-content');
+            
+            const opt = {
+                margin: 10,
+                filename: `daily-report-${date}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            try {
+                showLoading();
+                await html2pdf().set(opt).from(element).save();
+                hideLoading();
+                showToast('PDF downloaded successfully', 'success');
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to download PDF: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+
+</html>
