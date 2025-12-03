@@ -267,6 +267,20 @@ const initDatabase = async () => {
   // Add hours_deducted column to support hour-based deductions
   await ensureColumn('deduction_rules', 'hours_deducted', 'REAL DEFAULT NULL');
 
+  // ========== ANNOUNCEMENTS FEATURE ==========
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS announcements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      authorId INTEGER NOT NULL,
+      authorName TEXT NOT NULL,
+      authorRole TEXT NOT NULL,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (authorId) REFERENCES employees(id) ON DELETE CASCADE
+    )
+  `);
+
   console.log('✅ Database initialized successfully');
   console.log('✅ Multiple check-ins per day enabled');
   console.log('✅ Monthly payroll system enabled');

@@ -28,11 +28,20 @@
             </div>
 
             <div class="card">
-                <div class="form-group">
-                    <label class="form-label">Select Employee</label>
-                    <select id="employee-select" class="form-control">
-                        <option value="">Choose an employee...</option>
-                    </select>
+                <div class="grid grid-2 gap-1">
+                    <div class="form-group">
+                        <label class="form-label">Select Employee</label>
+                        <select id="employee-select" class="form-control">
+                            <option value="">Choose an employee...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Filter by Date Range</label>
+                        <div class="grid grid-2 gap-1">
+                            <input type="date" id="date-from" class="form-control" placeholder="From">
+                            <input type="date" id="date-to" class="form-control" placeholder="To">
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -270,13 +279,14 @@
 
         function renderTaskHistory(tasks) {
             const container = document.getElementById('task-history');
+            const filteredTasks = filterByDateRange(tasks, 'createdAt');
 
-            if (tasks.length === 0) {
-                container.innerHTML = '<p class="text-muted">No tasks assigned</p>';
+            if (filteredTasks.length === 0) {
+                container.innerHTML = '<p class="text-muted">No tasks found for selected date range</p>';
                 return;
             }
 
-            const rows = tasks.map(task => ({
+            const rows = filteredTasks.map(task => ({
                 data: [
                     utils.escapeHtml(task.title || task.name || task.templateName || '-'),
                     `<span class="badge ${utils.getStatusBadgeClass(task.status)}">${task.status}</span>`,
@@ -293,13 +303,14 @@
 
         function renderAttendanceRecords(records) {
             const container = document.getElementById('attendance-records');
+            const filteredRecords = filterByDateRange(records, 'date');
 
-            if (records.length === 0) {
-                container.innerHTML = '<p class="text-muted">No attendance records</p>';
+            if (filteredRecords.length === 0) {
+                container.innerHTML = '<p class="text-muted">No attendance records for selected date range</p>';
                 return;
             }
 
-            const rows = records.slice(0, 10).map(record => ({
+            const rows = filteredRecords.slice(0, 50).map(record => ({
                 data: [
                     utils.formatDateReadable(record.date),
                     utils.formatTime(record.checkIn),
@@ -422,6 +433,38 @@ async function exportToExcel() {
         showToast('Failed to export: ' + error.message, 'error');
     }
 }
+
+        // Date filtering function
+        function filterByDateRange(items, dateField) {
+            const dateFrom = document.getElementById('date-from').value;
+            const dateTo = document.getElementById('date-to').value;
+
+            if (!dateFrom && !dateTo) {
+                return items;
+            }
+
+            return items.filter(item => {
+                if (!item[dateField]) return false;
+                const itemDate = item[dateField].split('T')[0]; // Get YYYY-MM-DD part
+                
+                if (dateFrom && itemDate < dateFrom) return false;
+                if (dateTo && itemDate > dateTo) return false;
+                return true;
+            });
+        }
+
+        // Add event listeners for date filters
+        document.getElementById('date-from').addEventListener('change', () => {
+            if (selectedEmployeeId) {
+                loadEmployeeAnalytics();
+            }
+        });
+
+        document.getElementById('date-to').addEventListener('change', () => {
+            if (selectedEmployeeId) {
+                loadEmployeeAnalytics();
+            }
+        });
 
         generateMonthOptions();
         loadEmployees();

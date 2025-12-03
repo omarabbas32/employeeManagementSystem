@@ -365,6 +365,22 @@ class APIService {
         const queryString = new URLSearchParams(params).toString();
         return this.get(`/reports/daily${queryString ? '?' + queryString : ''}`);
     }
+
+    // ===================================
+    // Announcements Endpoints
+    // ===================================
+
+    async getAnnouncements() {
+        return this.get('/announcements');
+    }
+
+    async createAnnouncement(announcementData) {
+        return this.post('/announcements', announcementData);
+    }
+
+    async deleteAnnouncement(id) {
+        return this.delete(`/announcements/${id}`);
+    }
 }
 
 // Export singleton instance

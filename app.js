@@ -16,6 +16,7 @@ const settingsRoutes = require('./source/Routes/settings');
 const typeRoutes = require('./source/Routes/types');
 const deductionRoutes = require('./source/Routes/deductions');
 const dailyReportRoutes = require('./source/Routes/daily-report');
+const announcementRoutes = require('./source/Routes/announcements');
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use('/settings', settingsRoutes);
 app.use('/types', typeRoutes);
 app.use('/deductions', deductionRoutes);
 app.use('/reports/daily', dailyReportRoutes);
+app.use('/announcements', announcementRoutes);
 
 
 app.use((err, req, res, next) => {

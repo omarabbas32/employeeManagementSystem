@@ -138,9 +138,15 @@
             container.innerHTML = createTable(headers, rows);
         }
 
+
         async function downloadPDF() {
             if (!reportData) {
                 showToast('Please generate a report first', 'error');
+                return;
+            }
+
+            if (typeof html2pdf === 'undefined') {
+                showToast('PDF library not loaded. Please refresh the page.', 'error');
                 return;
             }
 
@@ -162,6 +168,7 @@
                 showToast('PDF downloaded successfully', 'success');
             } catch (error) {
                 hideLoading();
+                console.error('PDF Error:', error);
                 showToast('Failed to download PDF: ' + error.message, 'error');
             }
         }

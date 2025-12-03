@@ -104,11 +104,19 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
 
   // COMPLETE CALCULATION: Net Salary = Base + Hours Pay + Task Earnings + Responsibility Earnings - Deductions
 
-  // Use employee-specific hourly rate, fallback to global settings if not set
-  const hourlyRate = employee.normalHourRate || settings?.normalHourRate || 15;
+  // Use employee-specific hourly rates, fallback to global settings if not set
+  const normalHourlyRate = employee.normalHourRate ;
+  const overtimeHourlyRate = employee.overtimeHourRate ;
+  const overtimeThreshold = employee.requiredMonthlyHours ;
 
-  // Calculate working hours payment (all hours paid at same rate)
-  const workingHoursPay = totalHours * hourlyRate;
+  // Calculate normal hours vs overtime hours
+  const normalHours = Math.min(totalHours, overtimeThreshold);
+  const overtimeHours = Math.max(0, totalHours - overtimeThreshold);
+
+  // Calculate pay for normal and overtime hours separately
+  const normalPay = normalHours * normalHourlyRate;
+  const overtimePay = overtimeHours * overtimeHourlyRate;
+  const workingHoursPay = normalPay + overtimePay;
 
   // Calculate task earnings from completed tasks
   const taskEarnings = sum(completedTasks.map(task => task.price || 0));
@@ -123,7 +131,7 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
   const baseSalary = employee.baseSalary || 0;
   const grossSalary = baseSalary + workingHoursPay + taskEarnings + responsibilityEarnings;
 
-  const deductionResult = applyDeductions(deductions, grossSalary, hourlyRate);
+  const deductionResult = applyDeductions(deductions, grossSalary, normalHourlyRate);
   const netSalary = grossSalary - deductionResult.total;
 
   // Return structure that matches frontend expectations
@@ -133,10 +141,17 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
     employeeName: employee.name,
     period: monthValue,
     baseSalary: baseSalary,
+
     // Attendance data
     attendance: {
       totalHours: totalHours || 0,
-      hourlyRate: hourlyRate,
+      normalHours: normalHours || 0,
+      overtimeHours: overtimeHours || 0,
+      normalRate: normalHourlyRate,
+      overtimeRate: overtimeHourlyRate,
+      overtimeThreshold: overtimeThreshold,
+      normalPay: normalPay || 0,
+      overtimePay: overtimePay || 0,
       workingHoursPay: workingHoursPay || 0
     },
     // Task data

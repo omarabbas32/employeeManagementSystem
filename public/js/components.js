@@ -124,6 +124,9 @@ function createSidebar(role, activePage = '') {
       <a href="/public/admin/daily-report.html" class="nav-item ${activePage === 'reports' ? 'active' : ''}">
         <i class="fas fa-file-alt"></i> Daily Report
       </a>
+      <a href="/public/admin/announcements.html" class="nav-item ${activePage === 'announcements' ? 'active' : ''}">
+        <i class="fas fa-bullhorn"></i> Announcements
+      </a>
     `;
   } else if (role === 'Managerial') {
     navItems = `
@@ -142,6 +145,9 @@ function createSidebar(role, activePage = '') {
       <a href="/public/manager/daily-report.html" class="nav-item ${activePage === 'reports' ? 'active' : ''}">
         <i class="fas fa-file-alt"></i> Daily Report
       </a>
+      <a href="/public/manager/announcements.html" class="nav-item ${activePage === 'announcements' ? 'active' : ''}">
+        <i class="fas fa-bullhorn"></i> Announcements
+      </a>
     `;
   } else {
     navItems = `
@@ -156,6 +162,9 @@ function createSidebar(role, activePage = '') {
       </a>
        <a href="/public/employee/responsibilities.html" class="nav-item ${activePage === 'responsibilities' ? 'active' : ''}">
          <i class="fas fa-user-tie"></i> Responsibilities
+      </a>
+      <a href="/public/employee/announcements.html" class="nav-item ${activePage === 'announcements' ? 'active' : ''}">
+        <i class="fas fa-bullhorn"></i> Announcements
       </a>
     `;
   }

@@ -82,11 +82,11 @@ const createEmployee = async (payload) => {
     username,
     email,
     password,
-    baseSalary = 0,
-    monthlyFactor = 1,
-    overtimeFactor = 1,
-    requiredMonthlyHours = 160,
-    notes = '',
+    baseSalary,
+    monthlyFactor,
+    overtimeFactor,
+    requiredMonthlyHours,
+    notes,
   } = payload;
   if (!name || !employeeType) {
     throw new Error('name and employeeType are required');

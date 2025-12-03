@@ -22,10 +22,10 @@ async function createAdminUser() {
 
         // Create new admin user
         const adminData = {
-            name: 'System Admin',
+            name: 'dorra111',
             username: 'admin',
-            email: 'admin@example.com',
-            password: 'admin123', // Change this after first login!
+            email: 'admin@example1.com',
+            password: '123456', // Change this after first login!
             employeeType: 'Admin',
             baseSalary: 0,
             monthlyFactor: 1,
