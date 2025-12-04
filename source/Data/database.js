@@ -2,7 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
-const dbDir = __dirname;
+const dbDir = process.env.VERCEL ? '/tmp' : __dirname;
 const dbPath = path.join(dbDir, 'employees.db');
 
 if (!fs.existsSync(dbDir)) {
