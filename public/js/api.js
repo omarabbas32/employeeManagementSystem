@@ -1,6 +1,8 @@
 // API Service - Centralized HTTP client for backend communication
-// Use window.location to support both localhost and network access
-const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:3000`;
+// Auto-detect environment: localhost for development, Vercel URL for production
+const API_BASE_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : 'https://employeemanagementsystem1-phi.vercel.app';
 
 class APIService {
     constructor() {
