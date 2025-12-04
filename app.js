@@ -71,21 +71,23 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-
-initDatabase()
-  .then(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`\n🚀 Employee Management System API is running!`);
-      console.log(`📍 Local:   http://localhost:${PORT}`);
-      console.log(`📍 Network: http://YOUR_LOCAL_IP:${PORT}`);
-      console.log(`\nTo find your local IP, run: ipconfig (Windows) or ifconfig (Mac/Linux)\n`);
-    });
-  })
-  .catch((err) => {
-    console.error('Failed to initialize database', err);
-    process.exit(1);
-  });
-
+// Export the app for Vercel serverless functions
 module.exports = app;
+
+// Only listen if run directly (local development)
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  initDatabase()
+    .then(() => {
+      app.listen(PORT, '0.0.0.0', () => {
+        console.log(`\n🚀 Employee Management System API is running!`);
+        console.log(`📍 Local:   http://localhost:${PORT}`);
+        console.log(`📍 Network: http://YOUR_LOCAL_IP:${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error('Failed to initialize database', err);
+      process.exit(1);
+    });
+}
 
