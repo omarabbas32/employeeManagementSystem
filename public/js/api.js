@@ -1,10 +1,13 @@
 // API Service - Centralized HTTP client for backend communication
 // Auto-detect environment: localhost for development, Vercel URL for production
-const API_BASE_URL ='https://employeemanagementsystem1-phi.vercel.app';
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000'
+    : 'https://employeemanagementsystem1-phi.vercel.app';
 
 class APIService {
     constructor() {
         this.baseURL = API_BASE_URL;
+        console.log('API Base URL:', this.baseURL); // Debug log
     }
 
     // Get JWT token from localStorage
