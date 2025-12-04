@@ -7,7 +7,7 @@
     <title>Daily Report - EMS</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 
 <body>
@@ -35,8 +35,8 @@
                             <button class="btn btn-primary" onclick="loadReport()">
                                 <i class="fas fa-search"></i> Generate Report
                             </button>
-                            <button class="btn btn-success" onclick="downloadPDF()" style="margin-left: 0.5rem;">
-                                <i class="fas fa-download"></i> Download PDF
+                            <button class="btn btn-success" onclick="downloadExcel()" style="margin-left: 0.5rem;">
+                                <i class="fas fa-file-excel"></i> Download Excel
                             </button>
                         </div>
                     </div>
@@ -139,37 +139,50 @@
         }
 
 
-        async function downloadPDF() {
-            if (!reportData) {
+        function downloadExcel() {
+            if (!reportData || !reportData.tasks || reportData.tasks.length === 0) {
                 showToast('Please generate a report first', 'error');
                 return;
             }
 
-            if (typeof html2pdf === 'undefined') {
-                showToast('PDF library not loaded. Please refresh the page.', 'error');
-                return;
-            }
-
-            const date = document.getElementById('report-date').value;
-            const element = document.getElementById('report-content');
-            
-            const opt = {
-                margin: 10,
-                filename: `daily-report-${date}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
             try {
-                showLoading();
-                await html2pdf().set(opt).from(element).save();
-                hideLoading();
-                showToast('PDF downloaded successfully', 'success');
+                // Prepare data for Excel
+                const excelData = reportData.tasks.map(task => ({
+                    'Task Name': task.taskName || '-',
+                    'Employee': task.employeeName || '-',
+                    'Status': task.status || '-',
+                    'Due Date': task.dueDate ? utils.formatDateReadable(task.dueDate) : '-',
+                    'Completed At': task.completedAt ? utils.formatDateReadable(task.completedAt) : '-',
+                    'Description': task.description || '-'
+                }));
+
+                // Create worksheet
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                
+                // Set column widths
+                ws['!cols'] = [
+                    { wch: 30 }, // Task Name
+                    { wch: 20 }, // Employee
+                    { wch: 12 }, // Status
+                    { wch: 15 }, // Due Date
+                    { wch: 15 }, // Completed At
+                    { wch: 40 }  // Description
+                ];
+
+                // Create workbook
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Daily Report');
+
+                // Generate filename with date
+                const date = document.getElementById('report-date').value;
+                const filename = `Daily_Report_${date}.xlsx`;
+
+                // Download
+                XLSX.writeFile(wb, filename);
+                showToast('Excel file downloaded successfully', 'success');
             } catch (error) {
-                hideLoading();
-                console.error('PDF Error:', error);
-                showToast('Failed to download PDF: ' + error.message, 'error');
+                console.error('Excel generation error:', error);
+                showToast('Failed to generate Excel file: ' + error.message, 'error');
             }
         }
     </script>
