@@ -281,6 +281,21 @@ const initDatabase = async () => {
     )
   `);
 
+  // ========== DEFAULT ADMIN CREATION (Critical for Vercel /tmp DB) ==========
+  const existingAdmin = await getAsync(`SELECT id FROM employees WHERE employeeType = 'Admin' LIMIT 1`);
+  if (!existingAdmin) {
+    console.log('⚠️ No admin found. Creating default admin user...');
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash('123456', 10);
+
+    await runAsync(
+      `INSERT INTO employees (name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, requiredMonthlyHours, normalHourRate, overtimeHourRate)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['Default Admin', 'admin', 'admin@example.com', passwordHash, 'Admin', 0, 1, 1, 160, 15, 22.5]
+    );
+    console.log('✅ Default admin created: username=admin, password=123456');
+  }
+
   console.log('✅ Database initialized successfully');
   console.log('✅ Multiple check-ins per day enabled');
   console.log('✅ Monthly payroll system enabled');

@@ -39,6 +39,22 @@ app.use(express.json());
 // Serve static files from public directory (before authentication)
 app.use('/public', express.static('public'));
 
+// DB Initialization Middleware for Vercel (Cold Start)
+let dbInitialized = false;
+app.use(async (req, res, next) => {
+  if (!dbInitialized) {
+    try {
+      await initDatabase();
+      dbInitialized = true;
+      console.log('✅ Database initialized on cold start');
+    } catch (err) {
+      console.error('❌ Failed to initialize database:', err);
+      return res.status(500).json({ error: 'Database initialization failed' });
+    }
+  }
+  next();
+});
+
 // Serve login page at root (before authentication)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -46,6 +62,11 @@ app.get('/', (req, res) => {
 
 // Auth routes don't need authentication
 app.use('/auth', authRoutes);
+
+// Explicitly bypass auth for static assets in case Vercel rewrite falls through
+app.use(['/favicon.ico', '/admin/assets/*', '/public/*'], (req, res, next) => {
+  next();
+});
 
 // Apply authentication to all other routes
 app.use(authenticateUser);
