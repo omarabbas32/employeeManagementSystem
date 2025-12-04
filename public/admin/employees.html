@@ -107,10 +107,6 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Notes</label>
-                        <textarea name="notes" class="form-control" rows="3"></textarea>
-                    </div>
 
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary"
@@ -195,11 +191,7 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Notes</label>
-                        <textarea name="notes" class="form-control" rows="3"></textarea>
-                    </div>
-
+                    
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary"
                             onclick="closeModal('edit-employee-modal')">Cancel</button>
@@ -281,8 +273,8 @@
                 <p><strong>Overtime Factor:</strong> ${emp.overtimeFactor}</p>
                 <p><strong>Required Monthly Hours:</strong> ${emp.requiredMonthlyHours || 160} hours</p>
               </div>
-            </div>
-            ${emp.notes ? `<p class="mt-1"><strong>Notes:</strong> ${utils.escapeHtml(emp.notes)}</p>` : ''}
+          </div>
+       
           </div>
         </div>
       `).join('');
@@ -309,7 +301,7 @@
             form.elements['requiredMonthlyHours'].value = employee.requiredMonthlyHours || 160;
             form.elements['normalHourRate'].value = employee.normalHourRate || 0;
             form.elements['overtimeHourRate'].value = employee.overtimeHourRate || 0;
-            form.elements['notes'].value = employee.notes || '';
+          //  form.elements['notes'].value = employee.notes || '';
 
             openModal('edit-employee-modal');
         }

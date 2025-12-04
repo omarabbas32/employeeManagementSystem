@@ -140,7 +140,7 @@
             try {
                 showLoading();
                 const statusFilter = document.getElementById('status-filter').value;
-                const params = statusFilter === 'all' ? { includeInactive: true } : {};
+                const params = { includeInactive: true };
 
                 templates = await api.getTaskTemplates(params);
 
