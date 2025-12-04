@@ -100,11 +100,8 @@ if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   initDatabase()
     .then(() => {
-      app.listen(PORT, '0.0.0.0', () => {
-        console.log(`\n🚀 Employee Management System API is running!`);
-        console.log(`📍 Local:   http://localhost:${PORT}`);
-        console.log(`📍 Network: http://YOUR_LOCAL_IP:${PORT}`);
-      });
+      module.exports = app;
+
     })
     .catch((err) => {
       console.error('Failed to initialize database', err);
