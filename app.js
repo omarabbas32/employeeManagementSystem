@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const helmet = require('helmet');
 const { initDatabase } = require('./source/Data/database');
 
 const authRoutes = require('./source/Routes/auth');
@@ -20,26 +21,26 @@ const announcementRoutes = require('./source/Routes/announcements');
 
 const app = express();
 
+// Basic security headers
+app.use(helmet());
+
 // Enable CORS for all routes
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-admin-secret, x-user-id');
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
 app.use(express.json());
 
-// Serve static files from public directory (before authentication)
-app.use('/public', express.static('public'));
+// Serve static files before authentication
+app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use('/favicon.ico', express.static(path.join(__dirname, 'public', 'favicon.ico')));
+app.use('/admin/assets', express.static(path.join(__dirname, 'public', 'admin', 'assets')));
 
-// DB Initialization Middleware for Vercel (Cold Start)
+// DB Initialization Middleware for Cold Start
 let dbInitialized = false;
 app.use(async (req, res, next) => {
   if (!dbInitialized) {
@@ -60,19 +61,15 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Auth routes don't need authentication
+// Auth routes (no authentication needed)
 app.use('/auth', authRoutes);
 
-// Explicitly bypass auth for static assets in case Vercel rewrite falls through
-app.use(['/favicon.ico', '/admin/assets/*', '/public/*'], (req, res, next) => {
-  next();
-});
-
-// Apply authentication to all other routes
+// Apply authentication for all other routes
 app.use(authenticateUser);
 
+// Mount main routes
 app.use('/employees', employeeRoutes);
-app.use('/employees', employeeLookupRoutes);
+app.use('/employees/lookup', employeeLookupRoutes); // Avoid conflict
 app.use('/tasks', taskRoutes);
 app.use('/responsibilities', responsibilityRoutes);
 app.use('/attendance', attendanceRoutes);
@@ -84,7 +81,7 @@ app.use('/deductions', deductionRoutes);
 app.use('/reports/daily', dailyReportRoutes);
 app.use('/announcements', announcementRoutes);
 
-
+// Error handler
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(err.status || 500).json({
@@ -92,20 +89,20 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Export the app for Vercel serverless functions
+// Export for Vercel
 module.exports = app;
 
-// Only listen if run directly (local development)
+// Local development listener
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   initDatabase()
     .then(() => {
-      module.exports = app;
-
+      app.listen(PORT, '0.0.0.0', () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+      });
     })
     .catch((err) => {
       console.error('Failed to initialize database', err);
       process.exit(1);
     });
 }
-
