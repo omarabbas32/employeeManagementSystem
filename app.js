@@ -54,7 +54,7 @@ app.use(async (req, res, next) => {
 
 // Serve login page at root (before authentication)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Auth routes (no authentication needed)
