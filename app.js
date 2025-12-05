@@ -77,25 +77,6 @@ app.use('/deductions', deductionRoutes);
 app.use('/reports/daily', dailyReportRoutes);
 app.use('/announcements', announcementRoutes);
 
-
-// Initialize database for Vercel (serverless)
-let dbInitialized = false;
-const ensureDbInitialized = async (req, res, next) => {
-  if (!dbInitialized) {
-    try {
-      await initDatabase();
-      dbInitialized = true;
-    } catch (err) {
-      console.error('Database initialization failed:', err);
-      return res.status(500).json({ message: 'Database initialization failed' });
-    }
-  }
-  next();
-};
-
-// Apply database initialization middleware to all routes
-app.use(ensureDbInitialized);
-
 // Error handler
 app.use((err, req, res, next) => {
   console.error(err);
