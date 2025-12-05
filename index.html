@@ -165,8 +165,8 @@
     <script src="public/js/utils.js"></script>
     <script src="public/js/components.js"></script>
     <script>
-        // Redirect if already logged in
-        if (auth.isAuthenticated()) {
+        // Redirect if already logged in (with safety check)
+        if (typeof auth !== 'undefined' && auth.isAuthenticated()) {
             auth.redirectToDashboard();
         }
 
