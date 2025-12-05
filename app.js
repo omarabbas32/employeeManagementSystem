@@ -32,11 +32,19 @@ app.use((req, res, next) => {
 app.use(express.json());
 
 // Serve static files before authentication
+// Serve public directory at root level (for paths like /css/styles.css, /js/api.js)
+app.use(express.static(path.join(__dirname, 'public')));
+// Also serve at /public path (for paths like /public/css/styles.css)
 app.use('/public', express.static(path.join(__dirname, 'public')));
-app.use('/favicon.ico', express.static(path.join(__dirname, 'public', 'favicon.ico')));
-app.use('/admin/assets', express.static(path.join(__dirname, 'public', 'admin', 'assets')));
+// Serve specific subdirectories
+app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
+app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
+app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
+app.use('/employee', express.static(path.join(__dirname, 'public', 'employee')));
+app.use('/manager', express.static(path.join(__dirname, 'public', 'manager')));
 
 // DB Initialization Middleware for Cold Start
+
 let dbInitialized = false;
 app.use(async (req, res, next) => {
   if (!dbInitialized) {
