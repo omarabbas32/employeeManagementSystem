@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://omarabbas:Ix54fEUNZ4jFUr0d@cluster0.zhyvlye.mongodb.net/employeeManagementSystem?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URL;
+
+if (!MONGODB_URI) {
+    console.error('❌ MONGODB_URI or MONGO_URL environment variable is required');
+    process.exit(1);
+}
 
 let isConnected = false;
 
