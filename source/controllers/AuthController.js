@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { getAsync } = require('../Data/database');
+const { Employee } = require('../Data/database');
 const { comparePassword } = require('../utils/password');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'SUPER_SECRET_JWT_KEY';
@@ -14,10 +14,8 @@ const resolveEmployeeByCredential = async ({ username, email }) => {
   if (!username && !email) {
     throw new Error('username or email is required');
   }
-  const query = username
-    ? `SELECT * FROM employees WHERE username = ?`
-    : `SELECT * FROM employees WHERE email = ?`;
-  return getAsync(query, [username || email]);
+  const query = username ? { username } : { email };
+  return Employee.findOne(query).lean();
 };
 
 const login = async ({ username, email, password }) => {
@@ -40,7 +38,7 @@ const login = async ({ username, email, password }) => {
   }
 
   const token = generateToken({
-    sub: employee.id,
+    sub: employee.id.toString(),
     role: employee.employeeType.toLowerCase(),
     name: employee.name,
   });

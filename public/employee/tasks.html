@@ -34,6 +34,11 @@
                         </select>
                     </div>
                 </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label class="form-label">Filter by Due Date</label>
+                    <input type="date" id="date-filter" class="form-control">
+                    <small class="text-muted">Leave empty to show all dates</small>
+                </div>
             </div>
 
             <div id="tasks-container">
@@ -187,6 +192,7 @@
         function applyFilters() {
             const searchQuery = document.getElementById('search-input').value.toLowerCase();
             const statusFilter = document.getElementById('status-filter').value;
+            const dateFilter = document.getElementById('date-filter').value;
 
             filteredTasks = tasks.filter(task => {
                 const taskName = task.name || task.title || task.templateName || '';
@@ -195,8 +201,9 @@
                 const matchesSearch = taskName.toLowerCase().includes(searchQuery) ||
                     taskDesc.toLowerCase().includes(searchQuery);
                 const matchesStatus = !statusFilter || task.status === statusFilter;
+                const matchesDate = !dateFilter || task.dueDate === dateFilter;
 
-                return matchesSearch && matchesStatus;
+                return matchesSearch && matchesStatus && matchesDate;
             });
 
             renderTasks();
@@ -204,6 +211,7 @@
 
         document.getElementById('search-input').addEventListener('input', applyFilters);
         document.getElementById('status-filter').addEventListener('change', applyFilters);
+        document.getElementById('date-filter').addEventListener('change', applyFilters);
 
         function openTaskDetailsModal(assignmentId) {
             const task = tasks.find(t => t.id === assignmentId);

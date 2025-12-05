@@ -1,21 +1,17 @@
-const { allAsync, getAsync, runAsync } = require('../Data/database');
+const { Task } = require('../Data/database');
 
 const listTasks = async (filters = {}) => {
-  const conditions = [];
-  const params = [];
+  const query = {};
 
   if (filters.employeeId) {
-    conditions.push('assignedEmployeeId = ?');
-    params.push(filters.employeeId);
+    query.assignedEmployeeId = parseInt(filters.employeeId);
   }
 
   if (filters.status) {
-    conditions.push('status = ?');
-    params.push(filters.status);
+    query.status = filters.status;
   }
 
-  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const tasks = await allAsync(`SELECT * FROM tasks ${whereClause} ORDER BY id DESC`, params);
+  const tasks = await Task.find(query).sort({ id: -1 }).lean();
   // Map 'name' to 'title' for frontend compatibility
   return tasks.map(task => ({ ...task, title: task.name }));
 };
@@ -30,19 +26,24 @@ const createTask = async (payload) => {
     throw new Error('title and assignedEmployeeId are required');
   }
 
-  const result = await runAsync(
-    `INSERT INTO tasks (name, description, price, assignedEmployeeId, assignedBy, status, startDate, dueDate, factor)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, description, price, assignedEmployeeId, assignedBy || 'managerial', status, startDate, dueDate, factor]
-  );
+  const task = await Task.create({
+    name,
+    description,
+    price,
+    assignedEmployeeId,
+    assignedBy: assignedBy || 'managerial',
+    status,
+    startDate,
+    dueDate,
+    factor
+  });
 
-  const task = await getAsync(`SELECT * FROM tasks WHERE id = ?`, [result.lastID]);
   // Return with 'title' field for frontend compatibility
-  return { ...task, title: task.name };
+  return { ...task.toObject(), title: task.name };
 };
 
 const updateTask = async (id, payload) => {
-  const task = await getAsync(`SELECT * FROM tasks WHERE id = ?`, [id]);
+  const task = await Task.findOne({ id }).lean();
   if (!task) {
     const error = new Error('Task not found');
     error.status = 404;
@@ -62,31 +63,14 @@ const updateTask = async (id, payload) => {
     factor: payload.factor ?? task.factor,
   };
 
-  await runAsync(
-    `UPDATE tasks SET
-      name = ?, description = ?, price = ?, assignedEmployeeId = ?, assignedBy = ?, status = ?,
-      startDate = ?, dueDate = ?, factor = ?
-     WHERE id = ?`,
-    [
-      updatedTask.name,
-      updatedTask.description,
-      updatedTask.price,
-      updatedTask.assignedEmployeeId,
-      updatedTask.assignedBy,
-      updatedTask.status,
-      updatedTask.startDate,
-      updatedTask.dueDate,
-      updatedTask.factor,
-      id,
-    ]
-  );
+  await Task.updateOne({ id }, { $set: updatedTask });
 
-  const updated = await getAsync(`SELECT * FROM tasks WHERE id = ?`, [id]);
+  const updated = await Task.findOne({ id }).lean();
   return { ...updated, title: updated.name };
 };
 
 const deleteTask = async (id) => {
-  await runAsync(`DELETE FROM tasks WHERE id = ?`, [id]);
+  await Task.deleteOne({ id });
   return { success: true };
 };
 

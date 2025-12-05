@@ -1,11 +1,11 @@
 const dayjs = require('dayjs');
-const { getAsync, runAsync, allAsync } = require('../Data/database');
+const { Attendance, AdminSettings } = require('../Data/database');
 
 const formatDate = (inputDate) => (inputDate ? dayjs(inputDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'));
 
 const checkAttendanceCode = async (code) => {
-  const settings = await getAsync(`SELECT currentAttendanceCode FROM admin_settings WHERE id = 1`);
-  //here 
+  const settings = await AdminSettings.findOne({ _id: 1 }).lean();
+
   if (!settings || !settings.currentAttendanceCode) {
     const error = new Error('Attendance code not configured. Please contact admin.');
     error.status = 400;
@@ -39,19 +39,15 @@ const checkIn = async ({ employeeId, code, timestamp, date }) => {
   const checkInTime = timestamp || dayjs().toISOString();
 
   // Create NEW attendance record (allow multiple check-ins per day)
-  await runAsync(
-    `INSERT INTO attendance (employeeId, date, checkInTime, checkOutTime, dailyHours) 
-     VALUES (?, ?, ?, NULL, 0)`,
-    [employeeId, day, checkInTime]
-  );
+  const record = await Attendance.create({
+    employeeId,
+    date: day,
+    checkInTime,
+    checkOutTime: null,
+    dailyHours: 0
+  });
 
-  // Get the newly created record
-  const record = await getAsync(
-    `SELECT * FROM attendance WHERE employeeId = ? AND checkInTime = ? ORDER BY id DESC LIMIT 1`,
-    [employeeId, checkInTime]
-  );
-
-  return formatAttendanceRecord(record);
+  return formatAttendanceRecord(record.toObject());
 };
 
 const checkOut = async ({ employeeId, code, timestamp, date }) => {
@@ -64,11 +60,11 @@ const checkOut = async ({ employeeId, code, timestamp, date }) => {
   const day = formatDate(date);
 
   // Find ALL active check-ins for this employee today
-  const activeSessions = await allAsync(
-    `SELECT * FROM attendance 
-     WHERE employeeId = ? AND date = ? AND checkOutTime IS NULL`,
-    [employeeId, day]
-  );
+  const activeSessions = await Attendance.find({
+    employeeId,
+    date: day,
+    checkOutTime: null
+  }).lean();
 
   if (!activeSessions || activeSessions.length === 0) {
     const error = new Error('No active check-in found. Please check in first.');
@@ -83,14 +79,14 @@ const checkOut = async ({ employeeId, code, timestamp, date }) => {
     const duration = dayjs(checkOutTime).diff(dayjs(session.checkInTime), 'minute') / 60;
     const dailyHours = Math.max(0, Number(duration.toFixed(2)));
 
-    await runAsync(
-      `UPDATE attendance SET checkOutTime = ?, dailyHours = ? WHERE id = ?`,
-      [checkOutTime, dailyHours, session.id]
+    await Attendance.updateOne(
+      { id: session.id },
+      { $set: { checkOutTime, dailyHours } }
     );
   }
 
   // Return the last updated record
-  const updated = await getAsync(`SELECT * FROM attendance WHERE id = ?`, [activeSessions[0].id]);
+  const updated = await Attendance.findOne({ id: activeSessions[0].id }).lean();
   return formatAttendanceRecord(updated);
 };
 
@@ -99,46 +95,44 @@ const getAttendance = async (employeeId, month) => {
     throw new Error('employeeId is required');
   }
 
-  const monthFilter = month ? `${month}%` : dayjs().format('YYYY-MM%');
-  const records = await allAsync(
-    `SELECT * FROM attendance 
-     WHERE employeeId = ? AND date LIKE ? 
-     ORDER BY date DESC, checkInTime DESC`,
-    [employeeId, monthFilter]
-  );
+  const monthFilter = month || dayjs().format('YYYY-MM');
+  const records = await Attendance.find({
+    employeeId,
+    date: new RegExp(`^${monthFilter}`)
+  }).sort({ date: -1, checkInTime: -1 }).lean();
 
   return records.map(formatAttendanceRecord);
 };
 
 const getTodaySessions = async (employeeId) => {
   const today = formatDate();
-  const sessions = await allAsync(
-    `SELECT * FROM attendance 
-     WHERE employeeId = ? AND date = ? 
-     ORDER BY checkInTime DESC`,
-    [employeeId, today]
-  );
+  const sessions = await Attendance.find({
+    employeeId,
+    date: today
+  }).sort({ checkInTime: -1 }).lean();
 
   return sessions.map(formatAttendanceRecord);
 };
 
 const getMonthlyTotal = async (employeeId, month) => {
-  const monthFilter = month ? `${month}%` : dayjs().format('YYYY-MM%');
-  const result = await getAsync(
-    `SELECT 
-      COUNT(*) as totalSessions,
-      SUM(dailyHours) as totalHours,
-      COUNT(DISTINCT date) as daysWorked
-     FROM attendance 
-     WHERE employeeId = ? AND date LIKE ? AND checkOutTime IS NOT NULL`,
-    [employeeId, monthFilter]
-  );
+  const monthFilter = month || dayjs().format('YYYY-MM');
+
+  const records = await Attendance.find({
+    employeeId,
+    date: new RegExp(`^${monthFilter}`),
+    checkOutTime: { $ne: null }
+  }).lean();
+
+  const totalSessions = records.length;
+  const totalHours = records.reduce((sum, r) => sum + (r.dailyHours || 0), 0);
+  const uniqueDates = [...new Set(records.map(r => r.date))];
+  const daysWorked = uniqueDates.length;
 
   return {
-    totalSessions: result?.totalSessions || 0,
-    totalHours: result?.totalHours || 0,
-    daysWorked: result?.daysWorked || 0,
-    avgHoursPerDay: result?.daysWorked > 0 ? (result.totalHours / result.daysWorked).toFixed(2) : 0
+    totalSessions,
+    totalHours,
+    daysWorked,
+    avgHoursPerDay: daysWorked > 0 ? (totalHours / daysWorked).toFixed(2) : 0
   };
 };
 

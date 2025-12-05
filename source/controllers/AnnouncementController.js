@@ -1,26 +1,8 @@
-const { allAsync, runAsync, getAsync } = require('../Data/database');
-
-// Initialize announcements table
-async function initializeAnnouncementsTable() {
-    await runAsync(`
-    CREATE TABLE IF NOT EXISTS announcements (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      content TEXT NOT NULL,
-      authorId INTEGER NOT NULL,
-      authorName TEXT NOT NULL,
-      authorRole TEXT NOT NULL,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (authorId) REFERENCES employees(id) ON DELETE CASCADE
-    )
-  `);
-}
+const { Announcement } = require('../Data/database');
 
 // Get all announcements
 const getAllAnnouncements = async () => {
-    return await allAsync(
-        `SELECT * FROM announcements ORDER BY createdAt DESC`
-    );
+    return await Announcement.find().sort({ createdAt: -1 }).lean();
 };
 
 // Create announcement
@@ -31,25 +13,30 @@ const createAnnouncement = async (payload) => {
         throw new Error('Title, content, and author information are required');
     }
 
-    const result = await runAsync(
-        `INSERT INTO announcements (title, content, authorId, authorName, authorRole)
-     VALUES (?, ?, ?, ?, ?)`,
-        [title, content, authorId, authorName, authorRole]
-    );
+    const announcement = await Announcement.create({
+        title,
+        content,
+        authorId,
+        authorName,
+        authorRole
+    });
 
-    return await getAsync(
-        `SELECT * FROM announcements WHERE id = ?`,
-        [result.lastID]
-    );
+    return announcement.toObject();
 };
 
 // Delete announcement
 const deleteAnnouncement = async (id, userId, userRole) => {
-    // Get the announcement to check ownership
-    const announcement = await getAsync(
-        `SELECT * FROM announcements WHERE id = ?`,
-        [id]
-    );
+    console.log('DELETE DEBUG: id=', id, 'userId=', userId, 'userRole=', userRole);
+
+    // Try to find announcement by numeric id first, then by _id
+    let announcement = await Announcement.findOne({ id }).lean();
+
+    if (!announcement && typeof id === 'string' && id.length === 24) {
+        // Try finding by MongoDB _id
+        announcement = await Announcement.findById(id).lean();
+    }
+
+    console.log('DELETE DEBUG: Found announcement=', announcement);
 
     if (!announcement) {
         const error = new Error('Announcement not found');
@@ -60,17 +47,25 @@ const deleteAnnouncement = async (id, userId, userRole) => {
     // Admin can delete any announcement
     // Manager can only delete their own
     if (userRole !== 'Admin' && announcement.authorId !== userId) {
+        console.log('DELETE DEBUG: Permission denied. userRole=', userRole, 'authorId=', announcement.authorId, 'userId=', userId);
         const error = new Error('You can only delete your own announcements');
         error.status = 403;
         throw error;
     }
 
-    await runAsync(`DELETE FROM announcements WHERE id = ?`, [id]);
+    console.log('DELETE DEBUG: Deleting announcement with id=', id);
+
+    // Delete by numeric id if it exists, otherwise by _id
+    if (announcement.id) {
+        await Announcement.deleteOne({ id: announcement.id });
+    } else {
+        await Announcement.deleteOne({ _id: announcement._id });
+    }
+
     return { success: true };
 };
 
 module.exports = {
-    initializeAnnouncementsTable,
     getAllAnnouncements,
     createAnnouncement,
     deleteAnnouncement,

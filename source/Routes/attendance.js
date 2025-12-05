@@ -3,15 +3,44 @@ const router = express.Router();
 const asyncHandler = require('../utils/asyncHandler');
 const { authorizeRoles } = require('../middleware/auth');
 const AttendanceController = require('../controllers/AttendanceController');
+const { Employee } = require('../Data/database');
+
+// Helper to check if user can access employee data
+const canAccessEmployee = async (req, targetId) => {
+  if (req.user.isAdmin || req.user.role === 'managerial') return true;
+
+  // Direct comparison
+  if (targetId.toString() === req.user.id.toString()) return true;
+
+  // Lookup employee to handle both numeric id and MongoDB _id
+  try {
+    const numericId = parseInt(targetId);
+    const query = { $or: [] };
+
+    // Add numeric id query if valid
+    if (!isNaN(numericId)) {
+      query.$or.push({ id: numericId });
+    }
+
+    // Add MongoDB _id query if it looks like an ObjectId (24 hex chars)
+    if (typeof targetId === 'string' && targetId.length === 24 && /^[0-9a-fA-F]{24}$/.test(targetId)) {
+      query.$or.push({ _id: targetId });
+    }
+
+    if (query.$or.length === 0) return false;
+
+    const employee = await Employee.findOne(query).lean();
+    return employee && (employee.id.toString() === req.user.id.toString() || employee._id.toString() === req.user.id.toString());
+  } catch (err) {
+    return false;
+  }
+};
 
 // Check in
 router.post(
   '/checkin',
   asyncHandler(async (req, res) => {
-    const targetId = Number(req.body.employeeId);
-
-    // Allow if: admin, manager, or checking in for themselves
-    if (!req.user.isAdmin && req.user.role !== 'managerial' && targetId !== Number(req.user.id)) {
+    if (!(await canAccessEmployee(req, req.body.employeeId))) {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
@@ -24,10 +53,7 @@ router.post(
 router.post(
   '/checkout',
   asyncHandler(async (req, res) => {
-    const targetId = Number(req.body.employeeId);
-
-    // Allow if: admin, manager, or checking out for themselves
-    if (!req.user.isAdmin && req.user.role !== 'managerial' && targetId !== Number(req.user.id)) {
+    if (!(await canAccessEmployee(req, req.body.employeeId))) {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
@@ -39,8 +65,7 @@ router.post(
 router.get(
   '/:employeeId',
   asyncHandler(async (req, res) => {
-    const requestedId = Number(req.params.employeeId);
-    if (!req.user.isAdmin && req.user.role !== 'managerial' && requestedId !== Number(req.user.id)) {
+    if (!(await canAccessEmployee(req, req.params.employeeId))) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     const attendance = await AttendanceController.getAttendance(req.params.employeeId, req.query.month);
@@ -52,8 +77,7 @@ router.get(
 router.get(
   '/:employeeId/today',
   asyncHandler(async (req, res) => {
-    const requestedId = Number(req.params.employeeId);
-    if (!req.user.isAdmin && req.user.role !== 'managerial' && requestedId !== Number(req.user.id)) {
+    if (!(await canAccessEmployee(req, req.params.employeeId))) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     const sessions = await AttendanceController.getTodaySessions(req.params.employeeId);
@@ -65,8 +89,7 @@ router.get(
 router.get(
   '/:employeeId/monthly-total',
   asyncHandler(async (req, res) => {
-    const requestedId = Number(req.params.employeeId);
-    if (!req.user.isAdmin && req.user.role !== 'managerial' && requestedId !== Number(req.user.id)) {
+    if (!(await canAccessEmployee(req, req.params.employeeId))) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     const total = await AttendanceController.getMonthlyTotal(req.params.employeeId, req.query.month);

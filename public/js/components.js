@@ -106,6 +106,9 @@ function createSidebar(role, activePage = '') {
       <a href="/public/admin/tasks.html" class="nav-item ${activePage === 'tasks' ? 'active' : ''}">
         <i class="fas fa-tasks"></i> Tasks
       </a>
+      <a href="/public/admin/schedule.html" class="nav-item ${activePage === 'schedule' ? 'active' : ''}">
+        <i class="fas fa-calendar-day"></i> Daily Schedule
+      </a>
       <a href="/public/admin/responsibilities.html" class="nav-item ${activePage === 'responsibilities' ? 'active' : ''}">
         <i class="fas fa-bullseye"></i> Responsibilities
       </a>
@@ -135,6 +138,9 @@ function createSidebar(role, activePage = '') {
       </a>
       <a href="/public/manager/tasks.html" class="nav-item ${activePage === 'tasks' ? 'active' : ''}">
         <i class="fas fa-tasks"></i> Tasks
+      </a>
+      <a href="/public/manager/schedule.html" class="nav-item ${activePage === 'schedule' ? 'active' : ''}">
+        <i class="fas fa-calendar-day"></i> Daily Schedule
       </a>
       <a href="/public/manager/responsibilities.html" class="nav-item ${activePage === 'responsibilities' ? 'active' : ''}">
         <i class="fas fa-bullseye"></i> Responsibilities

@@ -32,8 +32,10 @@
     <script src="../js/utils.js"></script>
     <script src="../js/components.js"></script>
     <script>
-        if (!auth.init('Assistant')) throw new Error('Unauthorized');
-        document.getElementById('sidebar-container').innerHTML = createSidebar('Assistant', 'announcements');
+        // Allow all authenticated users to view announcements
+        if (!auth.init()) throw new Error('Unauthorized');
+        const user = auth.getCurrentUser();
+        document.getElementById('sidebar-container').innerHTML = createSidebar(user.employeeType, 'announcements');
 
         let announcements = [];
 

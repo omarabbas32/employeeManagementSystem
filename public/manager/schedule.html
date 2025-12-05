@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Schedule - Manager - EMS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>Task Schedule</h1>
+                <p class="text-muted">View all task assignments and their status</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Filter Tasks</h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label class="form-label">Search</label>
+                        <input type="text" id="search-filter" class="form-control" placeholder="Search by task name or employee name...">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select id="status-filter" class="form-control">
+                                <option value="">All Statuses</option>
+                                <option value="Pending">Pending</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Done">Done</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Due Date</label>
+                            <input type="date" id="date-filter" class="form-control">
+                            <small class="text-muted">Leave empty to show all dates</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Task Assignments</h3>
+                </div>
+                <div class="card-body" id="schedule-container">
+                    <p class="text-muted">Loading tasks...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Managerial')) throw new Error('Unauthorized');
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Managerial', 'schedule');
+
+        const statusFilter = document.getElementById('status-filter');
+        const dateFilter = document.getElementById('date-filter');
+        const searchFilter = document.getElementById('search-filter');
+        let allAssignments = [];
+
+        // Load assignments when filters change
+        statusFilter.addEventListener('change', renderSchedule);
+        dateFilter.addEventListener('change', renderSchedule);
+        searchFilter.addEventListener('input', renderSchedule);
+
+        async function loadAllAssignments() {
+            try {
+                showLoading();
+                // Get all task assignments
+                allAssignments = await api.getTaskAssignments();
+                renderSchedule();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load tasks: ' + error.message, 'error');
+            }
+        }
+
+        function renderSchedule() {
+            const container = document.getElementById('schedule-container');
+            const statusValue = statusFilter.value;
+            const dateValue = dateFilter.value;
+            const searchValue = searchFilter.value.toLowerCase().trim();
+
+            // Filter by status, date, and search
+            let filtered = allAssignments;
+            
+            if (statusValue) {
+                filtered = filtered.filter(a => a.status === statusValue);
+            }
+            
+            if (dateValue) {
+                filtered = filtered.filter(a => a.dueDate === dateValue);
+            }
+            
+            if (searchValue) {
+                filtered = filtered.filter(a => {
+                    const taskName = (a.templateName || a.name || '').toLowerCase();
+                    const employeeName = (a.employeeName || '').toLowerCase();
+                    return taskName.includes(searchValue) || employeeName.includes(searchValue);
+                });
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<p class="text-muted">No tasks found</p>';
+                return;
+            }
+
+            const rows = filtered.map(assignment => ({
+                data: [
+                    utils.escapeHtml(assignment.templateName || assignment.name || '-'),
+                    utils.escapeHtml(assignment.employeeName || 'Unassigned'),
+                    utils.escapeHtml(assignment.assignedBy || '-'),
+                    `<span class="badge ${utils.getStatusBadgeClass(assignment.status)}">${assignment.status}</span>`,
+                    assignment.dueDate ? utils.formatDateReadable(assignment.dueDate) : '-'
+                ]
+            }));
+
+            container.innerHTML = createTable(
+                ['Task', 'Employee', 'Assigned By', 'Status', 'Due Date'],
+                rows
+            );
+        }
+
+        // Load all assignments on page load
+        loadAllAssignments();
+    </script>
+</body>
+
+</html>

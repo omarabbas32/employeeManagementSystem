@@ -1,5 +1,5 @@
 const dayjs = require('dayjs');
-const { allAsync } = require('../Data/database');
+const { TaskAssignment, Task, Employee } = require('../Data/database');
 
 /**
  * Get daily report of tasks (Admin and Managerial only)
@@ -9,47 +9,84 @@ const getDailyReport = async (date) => {
     const targetDate = date ? dayjs(date).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
 
     // Query for task assignments (from task_templates system)
-    const assignments = await allAsync(
-        `SELECT 
-      ta.id,
-      ta.assignedEmployeeId,
-      ta.status,
-      ta.createdAt,
-      ta.dueDate,
-      ta.completedAt,
-      tt.name as taskName,
-      tt.description,
-      tt.price,
-      tt.factor,
-      e.name as employeeName,
-      e.username as employeeUsername
-    FROM task_assignments ta
-    JOIN task_templates tt ON ta.templateId = tt.id
-    JOIN employees e ON ta.assignedEmployeeId = e.id
-    WHERE (DATE(ta.dueDate) = ? OR DATE(ta.completedAt) = ?)
-    ORDER BY ta.dueDate ASC, ta.completedAt ASC`,
-        [targetDate, targetDate]
-    );
+    const assignments = await TaskAssignment.aggregate([
+        {
+            $match: {
+                $or: [
+                    { dueDate: { $regex: `^${targetDate}` } },
+                    { completedAt: { $regex: `^${targetDate}` } }
+                ]
+            }
+        },
+        {
+            $lookup: {
+                from: 'task_templates',
+                localField: 'templateId',
+                foreignField: 'id',
+                as: 'template'
+            }
+        },
+        { $unwind: '$template' },
+        {
+            $lookup: {
+                from: 'employees',
+                localField: 'assignedEmployeeId',
+                foreignField: 'id',
+                as: 'employee'
+            }
+        },
+        { $unwind: '$employee' },
+        {
+            $project: {
+                id: 1,
+                assignedEmployeeId: 1,
+                status: 1,
+                createdAt: 1,
+                dueDate: 1,
+                completedAt: 1,
+                taskName: '$template.name',
+                description: '$template.description',
+                price: '$template.price',
+                factor: '$template.factor',
+                employeeName: '$employee.name',
+                employeeUsername: '$employee.username'
+            }
+        },
+        { $sort: { dueDate: 1, completedAt: 1 } }
+    ]);
 
-    // Query for legacy tasks (from tasks table) - may not have createdAt in old schema
-    const legacyTasks = await allAsync(
-        `SELECT 
-      t.id,
-      t.assignedEmployeeId,
-      t.status,
-      t.dueDate,
-      t.name as taskName,
-      t.description,
-      t.price,
-      t.factor,
-      e.name as employeeName,
-      e.username as employeeUsername
-    FROM tasks t
-    JOIN employees e ON t.assignedEmployeeId = e.id
-    WHERE DATE(t.dueDate) = ?
-    ORDER BY t.dueDate ASC`,
-        [targetDate]
-    );
+    // Query for legacy tasks (from tasks table)
+    const legacyTasks = await Task.aggregate([
+        {
+            $match: {
+                dueDate: { $regex: `^${targetDate}` }
+            }
+        },
+        {
+            $lookup: {
+                from: 'employees',
+                localField: 'assignedEmployeeId',
+                foreignField: 'id',
+                as: 'employee'
+            }
+        },
+        { $unwind: '$employee' },
+        {
+            $project: {
+                id: 1,
+                assignedEmployeeId: 1,
+                status: 1,
+                dueDate: 1,
+                taskName: '$name',
+                description: 1,
+                price: 1,
+                factor: 1,
+                employeeName: '$employee.name',
+                employeeUsername: '$employee.username'
+            }
+        },
+        { $sort: { dueDate: 1 } }
+    ]);
 
     // Combine and format results
     const allTasks = [
@@ -80,7 +117,7 @@ const getDailyReport = async (date) => {
             completedAt: null,
             price: task.price,
             factor: task.factor,
-            createdAt: null, // Legacy tasks may not have this column
+            createdAt: null,
             source: 'legacy'
         }))
     ];

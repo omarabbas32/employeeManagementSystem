@@ -1,35 +1,29 @@
-const { allAsync, getAsync, runAsync } = require('../Data/database');
+const { TaskTemplate, TaskAssignment } = require('../Data/database');
 
 // ==================== TASK TEMPLATES ====================
 
 const listTemplates = async (filters = {}) => {
-    const conditions = [];
-    const params = [];
+    const query = {};
 
     // Only show active templates by default
     if (filters.includeInactive !== true) {
-        conditions.push('isActive = 1');
+        query.isActive = 1;
     }
 
     // Filter by type if specified
     if (filters.type) {
-        conditions.push('type = ?');
-        params.push(filters.type);
+        query.type = filters.type;
     }
 
-    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const templates = await allAsync(
-        `SELECT * FROM task_templates ${whereClause} ORDER BY createdAt DESC`,
-        params
-    );
+    const templates = await TaskTemplate.find(query).sort({ createdAt: -1 }).lean();
 
     // For each template, count active assignments
     for (const template of templates) {
-        const countResult = await getAsync(
-            `SELECT COUNT(*) as count FROM task_assignments WHERE templateId = ? AND status != 'Done'`,
-            [template.id]
-        );
-        template.activeAssignments = countResult.count;
+        const count = await TaskAssignment.countDocuments({
+            templateId: template.id,
+            status: { $ne: 'Done' }
+        });
+        template.activeAssignments = count;
     }
 
     return templates;
@@ -42,19 +36,22 @@ const createTemplate = async (payload) => {
         throw new Error('Template name is required');
     }
 
-    const result = await runAsync(
-        `INSERT INTO task_templates (name, description, price, factor, type, createdBy)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-        [name, description, price, factor, type, createdBy]
-    );
+    const template = await TaskTemplate.create({
+        name,
+        description,
+        price,
+        factor,
+        type,
+        createdBy
+    });
 
-    const template = await getAsync(`SELECT * FROM task_templates WHERE id = ?`, [result.lastID]);
-    template.activeAssignments = 0; // New template has no assignments
-    return template;
+    const result = template.toObject();
+    result.activeAssignments = 0; // New template has no assignments
+    return result;
 };
 
 const updateTemplate = async (id, payload) => {
-    const template = await getAsync(`SELECT * FROM task_templates WHERE id = ?`, [id]);
+    const template = await TaskTemplate.findOne({ id }).lean();
     if (!template) {
         const error = new Error('Template not found');
         error.status = 404;
@@ -68,37 +65,34 @@ const updateTemplate = async (id, payload) => {
         factor: payload.factor ?? template.factor,
     };
 
-    await runAsync(
-        `UPDATE task_templates SET name = ?, description = ?, price = ?, factor = ? WHERE id = ?`,
-        [updatedTemplate.name, updatedTemplate.description, updatedTemplate.price, updatedTemplate.factor, id]
-    );
+    await TaskTemplate.updateOne({ id }, { $set: updatedTemplate });
 
-    const updated = await getAsync(`SELECT * FROM task_templates WHERE id = ?`, [id]);
+    const updated = await TaskTemplate.findOne({ id }).lean();
 
     // Count active assignments
-    const countResult = await getAsync(
-        `SELECT COUNT(*) as count FROM task_assignments WHERE templateId = ? AND status != 'Done'`,
-        [id]
-    );
-    updated.activeAssignments = countResult.count;
+    const count = await TaskAssignment.countDocuments({
+        templateId: id,
+        status: { $ne: 'Done' }
+    });
+    updated.activeAssignments = count;
 
     return updated;
 };
 
 const deactivateTemplate = async (id) => {
-    const template = await getAsync(`SELECT * FROM task_templates WHERE id = ?`, [id]);
+    const template = await TaskTemplate.findOne({ id }).lean();
     if (!template) {
         const error = new Error('Template not found');
         error.status = 404;
         throw error;
     }
 
-    await runAsync(`UPDATE task_templates SET isActive = 0 WHERE id = ?`, [id]);
+    await TaskTemplate.updateOne({ id }, { $set: { isActive: 0 } });
     return { success: true };
 };
 
 const getTemplateById = async (id) => {
-    const template = await getAsync(`SELECT * FROM task_templates WHERE id = ?`, [id]);
+    const template = await TaskTemplate.findOne({ id }).lean();
     if (!template) {
         const error = new Error('Template not found');
         error.status = 404;
@@ -106,11 +100,11 @@ const getTemplateById = async (id) => {
     }
 
     // Count active assignments
-    const countResult = await getAsync(
-        `SELECT COUNT(*) as count FROM task_assignments WHERE templateId = ? AND status != 'Done'`,
-        [id]
-    );
-    template.activeAssignments = countResult.count;
+    const count = await TaskAssignment.countDocuments({
+        templateId: id,
+        status: { $ne: 'Done' }
+    });
+    template.activeAssignments = count;
 
     return template;
 };
@@ -118,48 +112,50 @@ const getTemplateById = async (id) => {
 // ==================== TASK ASSIGNMENTS ====================
 
 const listAssignments = async (filters = {}) => {
-    const conditions = [];
-    const params = [];
+    const { Employee } = require('../Data/database');
+    const query = {};
 
     if (filters.employeeId) {
-        conditions.push('ta.assignedEmployeeId = ?');
-        params.push(filters.employeeId);
+        query.assignedEmployeeId = parseInt(filters.employeeId);
     }
 
     if (filters.status) {
-        conditions.push('ta.status = ?');
-        params.push(filters.status);
+        query.status = filters.status;
     }
 
     if (filters.templateId) {
-        conditions.push('ta.templateId = ?');
-        params.push(filters.templateId);
+        query.templateId = parseInt(filters.templateId);
     }
 
     if (filters.type) {
-        conditions.push('ta.type = ?');
-        params.push(filters.type);
+        query.type = filters.type;
     }
 
-    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const assignments = await TaskAssignment.find(query).sort({ createdAt: -1 }).lean();
 
-    // Join with template to get template details
-    const assignments = await allAsync(
-        `SELECT 
-      ta.*,
-      tt.name as templateName,
-      tt.description as templateDescription,
-      tt.price as templatePrice,
-      tt.factor as templateFactor,
-      tt.type as templateType
-     FROM task_assignments ta
-     JOIN task_templates tt ON ta.templateId = tt.id
-     ${whereClause}
-     ORDER BY ta.createdAt DESC`,
-        params
-    );
+    // Get template details for each assignment
+    const templateIds = [...new Set(assignments.map(a => a.templateId))];
+    const templates = await TaskTemplate.find({ id: { $in: templateIds } }).lean();
+    const templateMap = {};
+    templates.forEach(t => { templateMap[t.id] = t; });
 
-    return assignments;
+    // Get employee details for each assignment
+    const employeeIds = [...new Set(assignments.map(a => a.assignedEmployeeId))];
+    const employees = await Employee.find({ id: { $in: employeeIds } }).lean();
+    const employeeMap = {};
+    employees.forEach(e => { employeeMap[e.id] = e; });
+
+    // Enrich assignments with template and employee data
+    return assignments.map(a => ({
+        ...a,
+        templateName: templateMap[a.templateId]?.name,
+        templateDescription: templateMap[a.templateId]?.description,
+        templatePrice: templateMap[a.templateId]?.price,
+        templateFactor: templateMap[a.templateId]?.factor,
+        templateType: templateMap[a.templateId]?.type,
+        employeeName: employeeMap[a.assignedEmployeeId]?.name,
+        employeeType: employeeMap[a.assignedEmployeeId]?.employeeType
+    }));
 };
 
 const createAssignment = async (payload) => {
@@ -170,10 +166,7 @@ const createAssignment = async (payload) => {
     }
 
     // Verify template exists and is active
-    const template = await getAsync(
-        `SELECT * FROM task_templates WHERE id = ? AND isActive = 1`,
-        [templateId]
-    );
+    const template = await TaskTemplate.findOne({ id: templateId, isActive: 1 }).lean();
     if (!template) {
         const error = new Error('Template not found or inactive');
         error.status = 404;
@@ -181,61 +174,54 @@ const createAssignment = async (payload) => {
     }
 
     // Copy type from template to assignment
-    const result = await runAsync(
-        `INSERT INTO task_assignments (templateId, assignedEmployeeId, assignedBy, type, startDate, dueDate, status)
-     VALUES (?, ?, ?, ?, ?, ?, 'Pending')`,
-        [templateId, assignedEmployeeId, assignedBy, template.type, startDate, dueDate]
-    );
+    const assignment = await TaskAssignment.create({
+        templateId,
+        assignedEmployeeId,
+        assignedBy,
+        type: template.type,
+        startDate,
+        dueDate,
+        status: 'Pending'
+    });
 
-    const assignment = await getAsync(
-        `SELECT 
-      ta.*,
-      tt.name,
-      tt.description,
-      tt.price,
-      tt.factor,
-      tt.type as templateType
-     FROM task_assignments ta
-     JOIN task_templates tt ON ta.templateId = tt.id
-     WHERE ta.id = ?`,
-        [result.lastID]
-    );
-
-    return assignment;
+    return {
+        ...assignment.toObject(),
+        name: template.name,
+        description: template.description,
+        price: template.price,
+        factor: template.factor,
+        templateType: template.type
+    };
 };
 
 const reassignTask = async (assignmentId, newEmployeeId) => {
-    const assignment = await getAsync(`SELECT * FROM task_assignments WHERE id = ?`, [assignmentId]);
+    const assignment = await TaskAssignment.findOne({ id: assignmentId }).lean();
     if (!assignment) {
         const error = new Error('Assignment not found');
         error.status = 404;
         throw error;
     }
 
-    await runAsync(
-        `UPDATE task_assignments SET assignedEmployeeId = ? WHERE id = ?`,
-        [newEmployeeId, assignmentId]
+    await TaskAssignment.updateOne(
+        { id: assignmentId },
+        { $set: { assignedEmployeeId: newEmployeeId } }
     );
 
-    const updated = await getAsync(
-        `SELECT 
-      ta.*,
-      tt.name,
-      tt.description,
-      tt.price,
-      tt.factor,
-      tt.type as templateType
-     FROM task_assignments ta
-     JOIN task_templates tt ON ta.templateId = tt.id
-     WHERE ta.id = ?`,
-        [assignmentId]
-    );
+    const updated = await TaskAssignment.findOne({ id: assignmentId }).lean();
+    const template = await TaskTemplate.findOne({ id: updated.templateId }).lean();
 
-    return updated;
+    return {
+        ...updated,
+        name: template?.name,
+        description: template?.description,
+        price: template?.price,
+        factor: template?.factor,
+        templateType: template?.type
+    };
 };
 
 const updateAssignmentStatus = async (assignmentId, status) => {
-    const assignment = await getAsync(`SELECT * FROM task_assignments WHERE id = ?`, [assignmentId]);
+    const assignment = await TaskAssignment.findOne({ id: assignmentId }).lean();
     if (!assignment) {
         const error = new Error('Assignment not found');
         error.status = 404;
@@ -246,30 +232,26 @@ const updateAssignmentStatus = async (assignmentId, status) => {
     const completedAt = (status === 'Done' || status === 'Completed') ? new Date().toISOString() : assignment.completedAt;
     const completedMonth = (status === 'Done' || status === 'Completed') ? dayjs().format('YYYY-MM') : assignment.completedMonth;
 
-    await runAsync(
-        `UPDATE task_assignments SET status = ?, completedAt = ?, completedMonth = ? WHERE id = ?`,
-        [status, completedAt, completedMonth, assignmentId]
+    await TaskAssignment.updateOne(
+        { id: assignmentId },
+        { $set: { status, completedAt, completedMonth } }
     );
 
-    const updated = await getAsync(
-        `SELECT 
-      ta.*,
-      tt.name,
-      tt.description,
-      tt.price,
-      tt.factor,
-      tt.type as templateType
-     FROM task_assignments ta
-     JOIN task_templates tt ON ta.templateId = tt.id
-     WHERE ta.id = ?`,
-        [assignmentId]
-    );
+    const updated = await TaskAssignment.findOne({ id: assignmentId }).lean();
+    const template = await TaskTemplate.findOne({ id: updated.templateId }).lean();
 
-    return updated;
+    return {
+        ...updated,
+        name: template?.name,
+        description: template?.description,
+        price: template?.price,
+        factor: template?.factor,
+        templateType: template?.type
+    };
 };
 
 const updateAssignment = async (assignmentId, payload) => {
-    const assignment = await getAsync(`SELECT * FROM task_assignments WHERE id = ?`, [assignmentId]);
+    const assignment = await TaskAssignment.findOne({ id: assignmentId }).lean();
     if (!assignment) {
         const error = new Error('Assignment not found');
         error.status = 404;
@@ -294,38 +276,101 @@ const updateAssignment = async (assignmentId, payload) => {
         completedMonth = dayjs().format('YYYY-MM');
     }
 
-    await runAsync(
-        `UPDATE task_assignments SET 
-      assignedEmployeeId = ?, 
-      status = ?, 
-      startDate = ?, 
-      dueDate = ?,
-      completedAt = ?,
-      completedMonth = ?
-     WHERE id = ?`,
-        [updates.assignedEmployeeId, updates.status, updates.startDate, updates.dueDate, completedAt, completedMonth, assignmentId]
+    await TaskAssignment.updateOne(
+        { id: assignmentId },
+        {
+            $set: {
+                assignedEmployeeId: updates.assignedEmployeeId,
+                status: updates.status,
+                startDate: updates.startDate,
+                dueDate: updates.dueDate,
+                completedAt,
+                completedMonth
+            }
+        }
     );
 
-    const updated = await getAsync(
-        `SELECT 
-      ta.*,
-      tt.name,
-      tt.description,
-      tt.price,
-      tt.factor,
-      tt.type as templateType
-     FROM task_assignments ta
-     JOIN task_templates tt ON ta.templateId = tt.id
-     WHERE ta.id = ?`,
-        [assignmentId]
-    );
+    const updated = await TaskAssignment.findOne({ id: assignmentId }).lean();
+    const template = await TaskTemplate.findOne({ id: updated.templateId }).lean();
 
-    return updated;
+    return {
+        ...updated,
+        name: template?.name,
+        description: template?.description,
+        price: template?.price,
+        factor: template?.factor,
+        templateType: template?.type
+    };
 };
 
 const deleteAssignment = async (assignmentId) => {
-    await runAsync(`DELETE FROM task_assignments WHERE id = ?`, [assignmentId]);
+    await TaskAssignment.deleteOne({ id: assignmentId });
     return { success: true };
+};
+
+// Get assignments by date (for daily schedule)
+const getAssignmentsByDate = async (date) => {
+    const { Employee } = require('../Data/database');
+
+    // Query assignments where dueDate matches the selected date
+    const assignments = await TaskAssignment.aggregate([
+        {
+            $match: {
+                dueDate: date
+            }
+        },
+        {
+            $lookup: {
+                from: 'task_templates',
+                localField: 'templateId',
+                foreignField: 'id',
+                as: 'template'
+            }
+        },
+        {
+            $unwind: {
+                path: '$template',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $lookup: {
+                from: 'employees',
+                localField: 'assignedEmployeeId',
+                foreignField: 'id',
+                as: 'employee'
+            }
+        },
+        {
+            $unwind: {
+                path: '$employee',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                id: 1,
+                templateId: 1,
+                assignedEmployeeId: 1,
+                status: 1,
+                dueDate: 1,
+                startDate: 1,
+                createdAt: 1,
+                templateName: '$template.name',
+                templateDescription: '$template.description',
+                templatePrice: '$template.price',
+                templateFactor: '$template.factor',
+                templateType: '$template.type',
+                employeeName: '$employee.name',
+                employeeType: '$employee.employeeType'
+            }
+        },
+        {
+            $sort: { templateName: 1, employeeName: 1 }
+        }
+    ]);
+
+    return assignments;
 };
 
 module.exports = {
@@ -343,4 +388,5 @@ module.exports = {
     updateAssignmentStatus,
     updateAssignment,
     deleteAssignment,
+    getAssignmentsByDate, // NEW
 };

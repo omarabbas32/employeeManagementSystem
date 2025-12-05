@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const helmet = require('helmet');
 const { initDatabase } = require('./source/Data/database');
 
 const authRoutes = require('./source/Routes/auth');
@@ -20,9 +19,6 @@ const dailyReportRoutes = require('./source/Routes/daily-report');
 const announcementRoutes = require('./source/Routes/announcements');
 
 const app = express();
-
-// Basic security headers
-app.use(helmet());
 
 // Enable CORS for all routes
 app.use((req, res, next) => {
@@ -67,9 +63,9 @@ app.use('/auth', authRoutes);
 // Apply authentication for all other routes
 app.use(authenticateUser);
 
-// Mount main routes
+// Mount main routes (order matters - more specific routes first)
+app.use('/employees/lookup', employeeLookupRoutes); // Must be before /employees
 app.use('/employees', employeeRoutes);
-app.use('/employees/lookup', employeeLookupRoutes); // Avoid conflict
 app.use('/tasks', taskRoutes);
 app.use('/responsibilities', responsibilityRoutes);
 app.use('/attendance', attendanceRoutes);

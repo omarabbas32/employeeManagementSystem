@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Schedule - Admin - EMS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <div id="sidebar-container"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h1>Task Schedule</h1>
+                <p class="text-muted">View all task assignments and their status</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Filter Tasks</h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select id="status-filter" class="form-control" style="max-width: 300px;">
+                            <option value="">All Statuses</option>
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Done">Done</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Task Assignments</h3>
+                </div>
+                <div class="card-body" id="schedule-container">
+                    <p class="text-muted">Loading tasks...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/components.js"></script>
+    <script>
+        if (!auth.init('Admin')) throw new Error('Unauthorized');
+        document.getElementById('sidebar-container').innerHTML = createSidebar('Admin', 'schedule');
+
+        const statusFilter = document.getElementById('status-filter');
+        let allAssignments = [];
+
+        // Load assignments when status changes
+        statusFilter.addEventListener('change', renderSchedule);
+
+        async function loadAllAssignments() {
+            try {
+                showLoading();
+                // Get all task assignments
+                allAssignments = await api.getTaskAssignments();
+                renderSchedule();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showToast('Failed to load tasks: ' + error.message, 'error');
+            }
+        }
+
+        function renderSchedule() {
+            const container = document.getElementById('schedule-container');
+            const statusValue = statusFilter.value;
+
+            // Filter by status if selected
+            let filtered = allAssignments;
+            if (statusValue) {
+                filtered = allAssignments.filter(a => a.status === statusValue);
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<p class="text-muted">No tasks found</p>';
+                return;
+            }
+
+            const rows = filtered.map(assignment => {
+                const earnings = (assignment.templatePrice || 0) * (assignment.templateFactor || 1);
+                return {
+                    data: [
+                        utils.escapeHtml(assignment.templateName || assignment.name || '-'),
+                        utils.escapeHtml(assignment.employeeName || 'Unassigned'),
+                        `<span class="badge ${utils.getStatusBadgeClass(assignment.status)}">${assignment.status}</span>`,
+                        assignment.dueDate ? utils.formatDateReadable(assignment.dueDate) : '-',
+                        `$${earnings.toFixed(2)}`
+                    ]
+                };
+            });
+
+            container.innerHTML = createTable(
+                ['Task', 'Employee', 'Status', 'Due Date', 'Earnings'],
+                rows
+            );
+        }
+
+        // Load all assignments on page load
+        loadAllAssignments();
+    </script>
+</body>
+
+</html>

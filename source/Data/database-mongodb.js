@@ -13,6 +13,23 @@ const {
     Announcement
 } = require('./models');
 
+// Compatibility layer to match SQLite API
+const runAsync = async (sql, params = []) => {
+    // This is a compatibility shim - MongoDB operations are handled by Mongoose
+    // This function exists to maintain the same export signature
+    throw new Error('runAsync is deprecated with MongoDB. Use Mongoose models directly.');
+};
+
+const getAsync = async (sql, params = []) => {
+    // This is a compatibility shim - MongoDB operations are handled by Mongoose
+    throw new Error('getAsync is deprecated with MongoDB. Use Mongoose models directly.');
+};
+
+const allAsync = async (sql, params = []) => {
+    // This is a compatibility shim - MongoDB operations are handled by Mongoose
+    throw new Error('allAsync is deprecated with MongoDB. Use Mongoose models directly.');
+};
+
 const initDatabase = async () => {
     // Connect to MongoDB
     await connectDB();
@@ -23,13 +40,11 @@ const initDatabase = async () => {
     // Initialize predefined employee types
     const predefinedTypes = ['Admin', 'Managerial', 'Financial', 'Assistant'];
     for (const typeName of predefinedTypes) {
-        const existing = await EmployeeType.findOne({ name: typeName });
-        if (!existing) {
-            await EmployeeType.create({
-                name: typeName,
-                privileges: typeName.toLowerCase()
-            });
-        }
+        await EmployeeType.findOneAndUpdate(
+            { name: typeName },
+            { name: typeName, privileges: typeName.toLowerCase() },
+            { upsert: true, new: true }
+        );
     }
 
     // Initialize admin settings (singleton)
@@ -53,8 +68,7 @@ const initDatabase = async () => {
                     $ifNull: ['$dueDate', { $ifNull: ['$createdAt', new Date().toISOString()] }]
                 }
             }
-        }],
-        { updatePipeline: true }
+        }]
     );
 
     // Backfill month fields
@@ -79,8 +93,7 @@ const initDatabase = async () => {
             $set: {
                 completedMonth: { $substr: ['$completedAt', 0, 7] }
             }
-        }],
-        { updatePipeline: true }
+        }]
     );
 
     console.log('✅ Database initialized successfully');
@@ -105,5 +118,11 @@ module.exports = {
     Announcement,
 
     // Functions
-    initDatabase
+    initDatabase,
+    runAsync,
+    getAsync,
+    allAsync,
+
+    // Legacy compatibility (deprecated)
+    db: null // SQLite db object no longer exists
 };

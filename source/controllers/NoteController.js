@@ -1,27 +1,29 @@
-const { runAsync, allAsync, getAsync } = require('../Data/database');
+const { Note } = require('../Data/database');
 
 const addNote = async ({ employeeId, content, author = 'admin', visibility = 'admin' }) => {
   if (!employeeId || !content) {
     throw new Error('employeeId and content are required');
   }
 
-  const result = await runAsync(
-    `INSERT INTO notes (employeeId, content, author, visibility) VALUES (?, ?, ?, ?)`,
-    [employeeId, content, author, visibility]
-  );
+  const note = await Note.create({
+    employeeId,
+    content,
+    author,
+    visibility
+  });
 
-  return getAsync(`SELECT * FROM notes WHERE id = ?`, [result.lastID]);
+  return note.toObject();
 };
 
-const listNotes = (employeeId) => {
+const listNotes = async (employeeId) => {
   if (!employeeId) {
     throw new Error('employeeId is required');
   }
-  return allAsync(`SELECT * FROM notes WHERE employeeId = ? ORDER BY createdAt DESC`, [employeeId]);
+  return Note.find({ employeeId }).sort({ createdAt: -1 }).lean();
 };
 
 const deleteNote = async (id) => {
-  await runAsync(`DELETE FROM notes WHERE id = ?`, [id]);
+  await Note.deleteOne({ id });
   return { success: true };
 };
 
@@ -30,4 +32,3 @@ module.exports = {
   listNotes,
   deleteNote,
 };
-

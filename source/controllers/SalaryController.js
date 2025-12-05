@@ -1,46 +1,57 @@
 const dayjs = require('dayjs');
-const { getAsync, allAsync } = require('../Data/database');
+const { Employee, TaskAssignment, Responsibility, Attendance, DeductionRule } = require('../Data/database');
 
 const sum = (arr) => arr.reduce((acc, val) => acc + Number(val || 0), 0);
 
-const fetchEmployee = (employeeId) => getAsync(`SELECT * FROM employees WHERE id = ?`, [employeeId]);
+const fetchEmployee = (employeeId) => Employee.findOne({ id: employeeId }).lean();
 
 const fetchAttendanceTotals = async (employeeId, monthPattern) => {
-  const records = await allAsync(
-    `SELECT dailyHours FROM attendance WHERE employeeId = ? AND date LIKE ?`,
-    [employeeId, monthPattern]
-  );
+  const monthPrefix = monthPattern.replace('%', '');
+  const records = await Attendance.find({
+    employeeId,
+    date: new RegExp(`^${monthPrefix}`)
+  }).lean();
   return sum(records.map((r) => r.dailyHours));
 };
 
-const fetchCompletedTasks = (employeeId, month) =>
-  allAsync(
-    `SELECT ta.*, tt.name, tt.description, tt.price, tt.factor
-     FROM task_assignments ta
-     JOIN task_templates tt ON ta.templateId = tt.id
-     WHERE ta.assignedEmployeeId = ?
-       AND (ta.status = 'Completed' OR ta.status = 'Done')
-       AND ta.completedMonth = ?`,
-    [employeeId, month]
-  );
+const fetchCompletedTasks = async (employeeId, month) => {
+  const assignments = await TaskAssignment.find({
+    assignedEmployeeId: employeeId,
+    status: { $in: ['Completed', 'Done'] },
+    completedMonth: month
+  }).lean();
+
+  const templateIds = [...new Set(assignments.map(a => a.templateId))];
+  const templates = await require('../Data/database').TaskTemplate.find({ id: { $in: templateIds } }).lean();
+  const templateMap = {};
+  templates.forEach(t => { templateMap[t.id] = t; });
+
+  return assignments.map(a => ({
+    ...a,
+    name: templateMap[a.templateId]?.name,
+    description: templateMap[a.templateId]?.description,
+    price: templateMap[a.templateId]?.price,
+    factor: templateMap[a.templateId]?.factor
+  }));
+};
 
 const fetchResponsibilities = (employeeId, month) =>
-  allAsync(
-    `SELECT * FROM responsibilities 
-     WHERE assignedEmployeeId = ? AND month = ?`,
-    [employeeId, month]
-  );
+  Responsibility.find({
+    assignedEmployeeId: employeeId,
+    month
+  }).lean();
 
-const fetchSettings = () => getAsync(`SELECT * FROM admin_settings WHERE id = 1`);
+const fetchSettings = () => require('../Data/database').AdminSettings.findOne({ _id: 1 }).lean();
 
 const fetchDeductions = (employeeId, month) =>
-  allAsync(
-    `SELECT * FROM deduction_rules
-     WHERE isActive = 1 
-       AND (applyToEmployeeId IS NULL OR applyToEmployeeId = ?)
-       AND month = ?`,
-    [employeeId, month]
-  );
+  DeductionRule.find({
+    isActive: 1,
+    $or: [
+      { applyToEmployeeId: null },
+      { applyToEmployeeId: employeeId }
+    ],
+    month
+  }).lean();
 
 const calculateTaskPayment = (tasks, employeeFactor, overtimeBonus, allowTaskOvertimeFactor) => {
   const base = sum(tasks.map((task) => (task.price || 0) * (task.factor || employeeFactor)));
@@ -105,9 +116,9 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
   // COMPLETE CALCULATION: Net Salary = Base + Hours Pay + Task Earnings + Responsibility Earnings - Deductions
 
   // Use employee-specific hourly rates, fallback to global settings if not set
-  const normalHourlyRate = employee.normalHourRate ;
-  const overtimeHourlyRate = employee.overtimeHourRate ;
-  const overtimeThreshold = employee.requiredMonthlyHours ;
+  const normalHourlyRate = employee.normalHourRate;
+  const overtimeHourlyRate = employee.overtimeHourRate;
+  const overtimeThreshold = employee.requiredMonthlyHours;
 
   // Calculate normal hours vs overtime hours
   const normalHours = Math.min(totalHours, overtimeThreshold);
@@ -119,7 +130,7 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
   const workingHoursPay = normalPay + overtimePay;
 
   // Calculate task earnings from completed tasks
-  const taskEarnings = sum(completedTasks.map(task => task.price || 0));
+  const taskEarnings = sum(completedTasks.map(task => task.price ));
   const completedTaskCount = completedTasks.length;
 
   // Calculate responsibility earnings (price × monthly factor)
@@ -176,7 +187,7 @@ const calculateSalaryForEmployee = async (employeeId, month) => {
 };
 
 const calculateAllSalaries = async (month) => {
-  const employees = await allAsync(`SELECT id, name FROM employees`);
+  const employees = await Employee.find().select('id name').lean();
   const results = await Promise.all(employees.map((emp) => calculateSalaryForEmployee(emp.id, month)));
 
   // Return format expected by payroll page
@@ -196,12 +207,12 @@ const generateEmployeeInvoice = async (employeeId, month) => {
   // Fetch detailed attendance sessions
   const monthValue = month || dayjs().format('YYYY-MM');
   const monthPattern = `${monthValue}%`;
-  const attendanceSessions = await allAsync(
-    `SELECT * FROM attendance 
-     WHERE employeeId = ? AND date LIKE ? AND checkOutTime IS NOT NULL
-     ORDER BY date ASC, checkInTime ASC`,
-    [employeeId, monthPattern]
-  );
+  const monthPrefix = monthPattern.replace('%', '');
+  const attendanceSessions = await Attendance.find({
+    employeeId,
+    date: new RegExp(`^${monthPrefix}`),
+    checkOutTime: { $ne: null }
+  }).sort({ date: 1, checkInTime: 1 }).lean();
 
   return {
     employee: salaryData.employee || {},

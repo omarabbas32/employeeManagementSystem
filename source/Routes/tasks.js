@@ -4,6 +4,38 @@ const asyncHandler = require('../utils/asyncHandler');
 const { authorizeRoles } = require('../middleware/auth');
 const TaskController = require('../controllers/TaskController');
 const TaskTemplateController = require('../controllers/TaskTemplateController');
+const { Employee } = require('../Data/database');
+
+// Helper to check if user can access employee data
+const canAccessEmployee = async (req, targetId) => {
+  if (req.user.isAdmin || req.user.role === 'managerial') return true;
+
+  // Direct comparison
+  if (targetId.toString() === req.user.id.toString()) return true;
+
+  // Lookup employee to handle both numeric id and MongoDB _id
+  try {
+    const numericId = parseInt(targetId);
+    const query = { $or: [] };
+
+    // Add numeric id query if valid
+    if (!isNaN(numericId)) {
+      query.$or.push({ id: numericId });
+    }
+
+    // Add MongoDB _id query if it looks like an ObjectId (24 hex chars)
+    if (typeof targetId === 'string' && targetId.length === 24 && /^[0-9a-fA-F]{24}$/.test(targetId)) {
+      query.$or.push({ _id: targetId });
+    }
+
+    if (query.$or.length === 0) return false;
+
+    const employee = await Employee.findOne(query).lean();
+    return employee && (employee.id.toString() === req.user.id.toString() || employee._id.toString() === req.user.id.toString());
+  } catch (err) {
+    return false;
+  }
+};
 
 // ==================== LEGACY TASK ROUTES (Deprecated) ====================
 
@@ -16,11 +48,10 @@ router.get(
     };
 
     if (req.query.employeeId) {
-      const requestedId = Number(req.query.employeeId);
-      if (!user.isAdmin && user.role !== 'managerial' && requestedId !== Number(user.id)) {
+      if (!(await canAccessEmployee(req, req.query.employeeId))) {
         return res.status(403).json({ message: 'Forbidden' });
       }
-      filters.employeeId = requestedId;
+      filters.employeeId = parseInt(req.query.employeeId);
     } else if (!user.isAdmin && user.role !== 'managerial') {
       filters.employeeId = user.id;
     }
@@ -119,11 +150,10 @@ router.get(
     };
 
     if (req.query.employeeId) {
-      const requestedId = Number(req.query.employeeId);
-      if (!user.isAdmin && user.role !== 'managerial' && requestedId !== Number(user.id)) {
+      if (!(await canAccessEmployee(req, req.query.employeeId))) {
         return res.status(403).json({ message: 'Forbidden' });
       }
-      filters.employeeId = requestedId;
+      filters.employeeId = parseInt(req.query.employeeId);
     } else if (!user.isAdmin && user.role !== 'managerial') {
       // Regular employees only see their own assignments
       filters.employeeId = user.id;
@@ -202,6 +232,16 @@ router.delete(
   })
 );
 
+// ==================== DAILY SCHEDULE ====================
+
+router.get(
+  '/schedule/:date',
+  authorizeRoles('admin', 'managerial'),
+  asyncHandler(async (req, res) => {
+    const { date } = req.params;
+    const assignments = await TaskTemplateController.getAssignmentsByDate(date);
+    res.json(assignments);
+  })
+);
+
 module.exports = router;
-
-

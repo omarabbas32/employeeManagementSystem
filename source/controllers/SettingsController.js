@@ -1,6 +1,6 @@
-const { getAsync, runAsync } = require('../Data/database');
+const { AdminSettings } = require('../Data/database');
 
-const getSettings = () => getAsync(`SELECT * FROM admin_settings WHERE id = 1`);
+const getSettings = () => AdminSettings.findOne({ _id: 1 }).lean();
 
 const updateSettings = async (payload) => {
   const current = await getSettings();
@@ -17,19 +17,18 @@ const updateSettings = async (payload) => {
     allowResponsibilityDeduction = current.allowResponsibilityDeduction,
   } = payload;
 
-  await runAsync(
-    `UPDATE admin_settings
-     SET normalHourRate = ?, overtimeHourRate = ?, overtimeThresholdHours = ?, currentAttendanceCode = ?,
-         allowTaskOvertimeFactor = ?, allowResponsibilityDeduction = ?
-     WHERE id = 1`,
-    [
-      normalHourRate,
-      overtimeHourRate,
-      overtimeThresholdHours,
-      currentAttendanceCode,
-      allowTaskOvertimeFactor ? 1 : 0,
-      allowResponsibilityDeduction ? 1 : 0,
-    ]
+  await AdminSettings.updateOne(
+    { _id: 1 },
+    {
+      $set: {
+        normalHourRate,
+        overtimeHourRate,
+        overtimeThresholdHours,
+        currentAttendanceCode,
+        allowTaskOvertimeFactor: allowTaskOvertimeFactor ? 1 : 0,
+        allowResponsibilityDeduction: allowResponsibilityDeduction ? 1 : 0
+      }
+    }
   );
 
   return getSettings();
@@ -39,7 +38,7 @@ const updateAttendanceCode = async (code) => {
   if (!code) {
     throw new Error('Attendance code is required');
   }
-  await runAsync(`UPDATE admin_settings SET currentAttendanceCode = ? WHERE id = 1`, [code]);
+  await AdminSettings.updateOne({ _id: 1 }, { $set: { currentAttendanceCode: code } });
   return getSettings();
 };
 
@@ -48,4 +47,3 @@ module.exports = {
   updateSettings,
   updateAttendanceCode,
 };
-

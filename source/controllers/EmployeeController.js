@@ -1,22 +1,72 @@
-const { allAsync, getAsync, runAsync } = require('../Data/database');
+const { Employee, Task, TaskTemplate, TaskAssignment, Responsibility, Attendance, Note } = require('../Data/database');
 const { hashPassword } = require('../utils/password');
+
+// Helper to safely find employee by ID (handles both numeric id and MongoDB _id)
+const findEmployeeById = async (id) => {
+  // Try numeric ID first
+  const numericId = parseInt(id);
+  if (!isNaN(numericId)) {
+    const employee = await Employee.findOne({ id: numericId }).lean();
+    if (employee) return employee;
+  }
+
+  // Try MongoDB ObjectId if valid (must be 24 char hex string)
+  if (typeof id === 'string' && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
+    try {
+      return await Employee.findById(id).lean();
+    } catch (err) {
+      // Invalid ObjectId, return null
+      return null;
+    }
+  }
+
+  return null;
+};
 
 const mapEmployeeDetails = async (employee) => {
   if (!employee) {
     return null;
   }
 
+  const employeeId = employee.id || employee._id;
+
   const [tasks, assignments, responsibilities, attendance, notes] = await Promise.all([
-    allAsync(`SELECT * FROM tasks WHERE assignedEmployeeId = ?`, [employee.id]),
-    allAsync(`
-      SELECT ta.*, tt.name, tt.description, tt.price, tt.factor, tt.type as templateType
-      FROM task_assignments ta
-      JOIN task_templates tt ON ta.templateId = tt.id
-      WHERE ta.assignedEmployeeId = ?
-    `, [employee.id]),
-    allAsync(`SELECT * FROM responsibilities WHERE assignedEmployeeId = ?`, [employee.id]),
-    allAsync(`SELECT * FROM attendance WHERE employeeId = ? ORDER BY date DESC`, [employee.id]),
-    allAsync(`SELECT * FROM notes WHERE employeeId = ? ORDER BY createdAt DESC`, [employee.id]),
+    Task.find({ assignedEmployeeId: employeeId }).lean(),
+    TaskAssignment.aggregate([
+      { $match: { assignedEmployeeId: employeeId } },
+      {
+        $lookup: {
+          from: 'task_templates',
+          localField: 'templateId',
+          foreignField: 'id',
+          as: 'template'
+        }
+      },
+      { $unwind: '$template' },
+      {
+        $project: {
+          id: 1,
+          templateId: 1,
+          assignedEmployeeId: 1,
+          assignedBy: 1,
+          type: 1,
+          status: 1,
+          startDate: 1,
+          dueDate: 1,
+          createdAt: 1,
+          completedAt: 1,
+          completedMonth: 1,
+          name: '$template.name',
+          description: '$template.description',
+          price: '$template.price',
+          factor: '$template.factor',
+          templateType: '$template.type'
+        }
+      }
+    ]),
+    Responsibility.find({ assignedEmployeeId: employeeId }).lean(),
+    Attendance.find({ employeeId: employeeId }).sort({ date: -1 }).lean(),
+    Note.find({ employeeId: employeeId }).sort({ createdAt: -1 }).lean(),
   ]);
 
   // Map database fields to frontend expected fields
@@ -58,6 +108,7 @@ const mapEmployeeDetails = async (employee) => {
 
   return {
     ...employee,
+    id: employee.id || employee._id,
     assignedTasks: allTasks,
     assignedResponsibilities: mappedResponsibilities,
     attendanceRecords: mappedAttendance,
@@ -66,12 +117,12 @@ const mapEmployeeDetails = async (employee) => {
 };
 
 const listEmployees = async () => {
-  const employees = await allAsync(`SELECT * FROM employees`);
+  const employees = await Employee.find().lean();
   return Promise.all(employees.map((e) => mapEmployeeDetails(e)));
 };
 
 const getEmployeeDetails = async (id) => {
-  const employee = await getAsync(`SELECT * FROM employees WHERE id = ?`, [id]);
+  const employee = await findEmployeeById(id);
   return mapEmployeeDetails(employee);
 };
 
@@ -100,17 +151,24 @@ const createEmployee = async (payload) => {
 
   const passwordHash = await hashPassword(password);
 
-  const result = await runAsync(
-    `INSERT INTO employees (name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, requiredMonthlyHours, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, requiredMonthlyHours, notes]
-  );
+  const employee = await Employee.create({
+    name,
+    username,
+    email,
+    passwordHash,
+    employeeType,
+    baseSalary,
+    monthlyFactor,
+    overtimeFactor,
+    requiredMonthlyHours,
+    notes
+  });
 
-  return getEmployeeDetails(result.lastID);
+  return getEmployeeDetails(employee.id);
 };
 
 const updateEmployee = async (id, payload) => {
-  const employee = await getAsync(`SELECT * FROM employees WHERE id = ?`, [id]);
+  const employee = await findEmployeeById(id);
   if (!employee) {
     const error = new Error('Employee not found');
     error.status = 404;
@@ -140,22 +198,45 @@ const updateEmployee = async (id, payload) => {
     passwordHash = await hashPassword(password);
   }
 
-  await runAsync(
-    `UPDATE employees
-     SET name = ?, username = ?, email = ?, passwordHash = ?, employeeType = ?, baseSalary = ?, monthlyFactor = ?, overtimeFactor = ?, requiredMonthlyHours = ?, normalHourRate = ?, overtimeHourRate = ?, hourlyRate = ?, notes = ?
-     WHERE id = ?`,
-    [name, username, email, passwordHash, employeeType, baseSalary, monthlyFactor, overtimeFactor, requiredMonthlyHours, normalHourRate, overtimeHourRate, hourlyRate, notes, id]
-  );
+  const updateData = {
+    name,
+    username,
+    email,
+    passwordHash,
+    employeeType,
+    baseSalary,
+    monthlyFactor,
+    overtimeFactor,
+    requiredMonthlyHours,
+    normalHourRate,
+    overtimeHourRate,
+    hourlyRate,
+    notes
+  };
+
+  // Update using the numeric id field
+  await Employee.updateOne({ id: employee.id }, { $set: updateData });
 
   return getEmployeeDetails(id);
 };
 
 const deleteEmployee = async (id) => {
-  await runAsync(`DELETE FROM tasks WHERE assignedEmployeeId = ?`, [id]);
-  await runAsync(`DELETE FROM responsibilities WHERE assignedEmployeeId = ?`, [id]);
-  await runAsync(`DELETE FROM attendance WHERE employeeId = ?`, [id]);
-  await runAsync(`DELETE FROM notes WHERE employeeId = ?`, [id]);
-  await runAsync(`DELETE FROM employees WHERE id = ?`, [id]);
+  const employee = await findEmployeeById(id);
+  if (!employee) {
+    const error = new Error('Employee not found');
+    error.status = 404;
+    throw error;
+  }
+
+  const employeeIdNum = employee.id;
+
+  await Task.deleteMany({ assignedEmployeeId: employeeIdNum });
+  await TaskAssignment.deleteMany({ assignedEmployeeId: employeeIdNum });
+  await Responsibility.deleteMany({ assignedEmployeeId: employeeIdNum });
+  await Attendance.deleteMany({ employeeId: employeeIdNum });
+  await Note.deleteMany({ employeeId: employeeIdNum });
+  await Employee.deleteOne({ id: employeeIdNum });
+
   return { success: true };
 };
 

@@ -1,30 +1,29 @@
-const { allAsync, getAsync, runAsync } = require('../Data/database');
+const { Responsibility, Employee } = require('../Data/database');
 
 const listResponsibilities = async (filters = {}) => {
-  const conditions = [];
-  const params = [];
+  const query = {};
 
   if (filters.employeeId) {
-    conditions.push('assignedEmployeeId = ?');
-    params.push(filters.employeeId);
+    query.assignedEmployeeId = parseInt(filters.employeeId);
   }
 
   if (filters.month) {
-    conditions.push('month = ?');
-    params.push(filters.month);
+    query.month = filters.month;
   }
 
-  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const responsibilities = await allAsync(
-    `SELECT r.*, e.name as employeeName 
-     FROM responsibilities r
-     LEFT JOIN employees e ON r.assignedEmployeeId = e.id
-     ${whereClause} 
-     ORDER BY r.id DESC`,
-    params
-  );
+  const responsibilities = await Responsibility.find(query).sort({ id: -1 }).lean();
 
-  return responsibilities.map(resp => ({ ...resp, title: resp.name }));
+  // Get employee names for each responsibility
+  const employeeIds = [...new Set(responsibilities.map(r => r.assignedEmployeeId))];
+  const employees = await Employee.find({ id: { $in: employeeIds } }).lean();
+  const employeeMap = {};
+  employees.forEach(e => { employeeMap[e.id] = e.name; });
+
+  return responsibilities.map(resp => ({
+    ...resp,
+    title: resp.name,
+    employeeName: employeeMap[resp.assignedEmployeeId] || null
+  }));
 };
 
 const createResponsibility = async (payload) => {
@@ -36,18 +35,22 @@ const createResponsibility = async (payload) => {
     throw new Error('name and assignedEmployeeId are required');
   }
 
-  const result = await runAsync(
-    `INSERT INTO responsibilities (name, description, monthlyPrice, assignedEmployeeId, assignedBy, status, factor, month)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, description, monthlyPrice, assignedEmployeeId, assignedBy || 'Admin', status, factor, month]
-  );
+  const responsibility = await Responsibility.create({
+    name,
+    description,
+    monthlyPrice,
+    assignedEmployeeId,
+    assignedBy: assignedBy || 'Admin',
+    status,
+    factor,
+    month
+  });
 
-  const responsibility = await getAsync(`SELECT * FROM responsibilities WHERE id = ?`, [result.lastID]);
-  return { ...responsibility, title: responsibility.name };
+  return { ...responsibility.toObject(), title: responsibility.name };
 };
 
 const updateResponsibility = async (id, payload) => {
-  const responsibility = await getAsync(`SELECT * FROM responsibilities WHERE id = ?`, [id]);
+  const responsibility = await Responsibility.findOne({ id }).lean();
   if (!responsibility) {
     const error = new Error('Responsibility not found');
     error.status = 404;
@@ -65,19 +68,14 @@ const updateResponsibility = async (id, payload) => {
     factor: payload.factor ?? responsibility.factor,
   };
 
-  await runAsync(
-    `UPDATE responsibilities
-     SET name = ?, description = ?, monthlyPrice = ?, assignedEmployeeId = ?, assignedBy = ?, status = ?, factor = ?
-     WHERE id = ?`,
-    [updated.name, updated.description, updated.monthlyPrice, updated.assignedEmployeeId, updated.assignedBy, updated.status, updated.factor, id]
-  );
+  await Responsibility.updateOne({ id }, { $set: updated });
 
-  const updatedResp = await getAsync(`SELECT * FROM responsibilities WHERE id = ?`, [id]);
+  const updatedResp = await Responsibility.findOne({ id }).lean();
   return { ...updatedResp, title: updatedResp.name };
 };
 
 const deleteResponsibility = async (id) => {
-  await runAsync(`DELETE FROM responsibilities WHERE id = ?`, [id]);
+  await Responsibility.deleteOne({ id });
   return { success: true };
 };
 

@@ -1,23 +1,23 @@
-const { allAsync, runAsync } = require('../Data/database');
+const { EmployeeType } = require('../Data/database');
 
-const listTypes = () => allAsync(`SELECT * FROM employee_types ORDER BY name ASC`);
+const listTypes = () => EmployeeType.find().sort({ name: 1 }).lean();
 
 const createType = async ({ name, description = '', privileges = 'employee' }) => {
   if (!name) {
     throw new Error('name is required');
   }
 
-  await runAsync(`INSERT INTO employee_types (name, description, privileges) VALUES (?, ?, ?)`, [
+  await EmployeeType.create({
     name,
     description,
-    privileges,
-  ]);
+    privileges
+  });
 
   return listTypes();
 };
 
 const deleteType = async (id) => {
-  await runAsync(`DELETE FROM employee_types WHERE id = ?`, [id]);
+  await EmployeeType.deleteOne({ id });
   return { success: true };
 };
 
@@ -26,4 +26,3 @@ module.exports = {
   createType,
   deleteType,
 };
-
