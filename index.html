@@ -189,7 +189,7 @@
             loginBtn.textContent = 'Logging in...';
 
             try {
-                const response = await api.login(username, password);
+                const response = await api.JSON.stringify("admin") ;// This creates ""admin""!
 
                 if (response.token) {
                     auth.setToken(response.token);
