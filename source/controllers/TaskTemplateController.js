@@ -63,6 +63,7 @@ const updateTemplate = async (id, payload) => {
         description: payload.description ?? template.description,
         price: payload.price ?? template.price,
         factor: payload.factor ?? template.factor,
+        isActive: payload.isActive ?? template.isActive,
     };
 
     await TaskTemplate.updateOne({ id }, { $set: updatedTemplate });

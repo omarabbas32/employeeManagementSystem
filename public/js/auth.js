@@ -27,7 +27,7 @@ const auth = {
     logout() {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '../index.html';
+        window.location.href = '/';
     },
 
     // Redirect to appropriate dashboard based on role
@@ -35,19 +35,19 @@ const auth = {
         const role = this.getUserRole();
 
         if (!role) {
-            window.location.href = '../index.html';
+            window.location.href = '/';
             return;
         }
 
         switch (role) {
             case 'Admin':
-                window.location.href = 'admin/dashboard.html';
+                window.location.href = '/admin/dashboard.html';
                 break;
             case 'Managerial':
-                window.location.href = 'manager/dashboard.html';
+                window.location.href = '/manager/dashboard.html';
                 break;
             default:
-                window.location.href = 'employee/dashboard.html';
+                window.location.href = '/employee/dashboard.html';
                 break;
         }
     },
@@ -68,7 +68,7 @@ const auth = {
     // Protect page - redirect if not authenticated or doesn't have required role
     protectPage(requiredRole = null) {
         if (!this.isAuthenticated()) {
-            window.location.href = '../index.html';
+            window.location.href = '/';
             return false;
         }
 
