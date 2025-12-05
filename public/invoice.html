@@ -422,14 +422,15 @@
                 responsibilitiesList.innerHTML = '<div class="data-row"><span class="data-label">لا توجد مسؤوليات</span></div>';
             }
 
-            // Deductions COUNT only (not list)
+            // Deductions - Show reasons/names only (not amounts)
             const deductionsList = document.getElementById('deductions-list');
             if (deductions && deductions.length > 0) {
-                deductionsList.innerHTML = `
+                const deductionsHTML = deductions.map(d => `
                     <div class="data-row">
-                        <span class="data-label">${deductions.length} خصم</span>
+                        <span class="data-label">${d.reason || d.name || 'خصم'}</span>
                     </div>
-                `;
+                `).join('');
+                deductionsList.innerHTML = deductionsHTML;
             } else {
                 deductionsList.innerHTML = '<div class="data-row"><span class="data-label">لا توجد خصومات</span></div>';
             }
