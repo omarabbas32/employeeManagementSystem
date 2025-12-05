@@ -42,12 +42,24 @@ class APIService {
 
         try {
             const response = await fetch(url, config);
-            const data = await response.json();
 
+            // Check if response is ok BEFORE parsing
             if (!response.ok) {
-                throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                // Try to parse as JSON first, fallback to text
+                let errorMessage;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.message || `HTTP error! status: ${response.status}`;
+                } catch {
+                    // If JSON parsing fails, get text
+                    const errorText = await response.text();
+                    errorMessage = errorText || `HTTP error! status: ${response.status}`;
+                }
+                throw new Error(errorMessage);
             }
 
+            // Only parse JSON if response was successful
+            const data = await response.json();
             return data;
         } catch (error) {
             console.error('API request failed:', error);
