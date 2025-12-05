@@ -4,19 +4,24 @@
     {
       "src": "app.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
- 
-    { "src": "/public/(.*)", "dest": "/public/$1" },
-    { "src": "/favicon.ico", "dest": "/public/favicon.ico" },
-    { "src": "/admin/assets/(.*)", "dest": "/public/admin/assets/$1" },
-
-    
-    { "src": "/(.*)", "dest": "/app.js" }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+    {
+      "src": "/public/(.*)",
+      "dest": "/public/$1"
+    },
+    {
+      "src": "/",
+      "dest": "/app.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/app.js"
+    }
+  ]
 }
-
