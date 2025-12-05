@@ -1,6 +1,6 @@
 // API Service - Centralized HTTP client for backend communication
 // Auto-detect environment: localhost for development, same domain for production
-const API_BASE_URL = "https://employee-management-system-umber-gamma.vercel.app";
+const API_BASE_URL = "https://employee-management-systemee.vercel.app";
 
 class APIService {
     constructor() {
