@@ -42,7 +42,7 @@ app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
 app.use('/employee', express.static(path.join(__dirname, 'public', 'employee')));
 app.use('/manager', express.static(path.join(__dirname, 'public', 'manager')));
-
+//
 // DB Initialization Middleware for Cold Start
 
 let dbInitialized = false;
