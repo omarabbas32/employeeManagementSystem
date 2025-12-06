@@ -1,8 +1,35 @@
 {
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/app.js"
+      "src": "app.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/css/(.*)",
+      "dest": "/public/css/$1"
+    },
+    {
+      "src": "/js/(.*)",
+      "dest": "/public/js/$1"
+    },
+    {
+      "src": "/admin/(.*)",
+      "dest": "/public/admin/$1"
+    },
+    {
+      "src": "/employee/(.*)",
+      "dest": "/public/employee/$1"
+    },
+    {
+      "src": "/manager/(.*)",
+      "dest": "/public/manager/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/app.js"
     }
   ]
 }
